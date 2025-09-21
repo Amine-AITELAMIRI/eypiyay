@@ -1,34 +1,35 @@
-# Migration Guide: Enhanced API Features
+# Migration Guide: Model Mode Features
 
-This guide helps you migrate from the original ChatGPT Relay API to the enhanced version with new prompt modes and database cleanup features.
+This guide helps you migrate to the enhanced ChatGPT Relay API with model mode selection and project-based URLs.
 
 ## 🆕 New Features Overview
 
-### 1. Special Prompt Modes
-- **Search Mode**: Automatically types `/sear` + Enter before user prompts
-- **Study Mode**: Automatically types `/stu` + Enter before user prompts
-- **Normal Mode**: No special commands (existing behavior)
+### 1. Model Mode Selection
+- **Auto Mode**: Default ChatGPT behavior (recommended for most use cases)
+- **Thinking Mode**: Uses gpt-5-thinking for thorough, analytical responses
+- **Instant Mode**: Uses gpt-5-instant for fast, concise responses
 
-### 2. Database Cleanup Features
-- **Fetch-and-Delete**: Retrieve responses and automatically remove them from database
-- **Automatic Background Cleanup**: Removes old completed requests hourly
-- **Manual Cleanup**: Admin endpoint for maintenance
+### 2. Project-Based URLs
+- **Fresh Discussions**: Each request starts a new conversation thread
+- **Model Isolation**: Different model modes use separate project contexts
+- **Better Organization**: All API requests are grouped in a dedicated project
+- **No Context Pollution**: Previous conversations don't interfere with new requests
 
 ## 📋 Migration Checklist
 
 ### For API Consumers
 
-- [ ] **Update request payloads** to include `prompt_mode` field (optional)
-- [ ] **Choose cleanup strategy** for response handling
-- [ ] **Update response handling** to work with fetch-and-delete patterns
-- [ ] **Test new endpoints** in development environment
+- [ ] **Update request payloads** to include `model_mode` field (optional)
+- [ ] **Choose appropriate model modes** for different use cases
+- [ ] **Test new model behaviors** in development environment
+- [ ] **Update documentation** to reflect model mode options
 
 ### For Server Administrators
 
-- [ ] **Set environment variables** for retention period
-- [ ] **Update deployment configuration** with new environment variables
-- [ ] **Monitor automatic cleanup** logs
-- [ ] **Configure retention period** based on your needs
+- [ ] **Deploy updated server** with model mode support
+- [ ] **Update worker configuration** if needed
+- [ ] **Monitor project URL navigation** in worker logs
+- [ ] **Verify database schema** includes model_mode column
 
 ## 🔄 API Changes
 
@@ -47,38 +48,30 @@ This guide helps you migrate from the original ChatGPT Relay API to the enhanced
 {
   "prompt": "What is machine learning?",
   "webhook_url": "https://your-webhook.com/endpoint",
-  "prompt_mode": "study"
+  "model_mode": "thinking"
 }
 ```
 
 **Migration Notes:**
-- `prompt_mode` is **optional** - existing code will work without changes
-- Valid values: `"search"`, `"study"`, or `null`/omitted for normal mode
+- `model_mode` is **optional** - existing code will work without changes
+- Valid values: `"auto"`, `"thinking"`, `"instant"`, or `null`/omitted for auto mode
 - Webhook URL behavior remains unchanged
 
-### Response Retrieval
+### Response Format
 
-#### Option 1: Traditional Fetch (No Changes Required)
-```bash
-GET /requests/{id}
+The response format now includes the model mode used:
+
+```json
+{
+  "id": 123,
+  "prompt": "What is machine learning?",
+  "status": "completed",
+  "response": "...",
+  "model_mode": "thinking",
+  "created_at": "2024-01-01T12:00:00Z",
+  "updated_at": "2024-01-01T12:05:00Z"
+}
 ```
-- **Behavior**: Unchanged - fetches response without deleting
-- **Compatibility**: 100% backward compatible
-- **Use Case**: When you need to fetch the same response multiple times
-
-#### Option 2: Fetch-and-Delete (New)
-```bash
-# Method 1: Query parameter
-GET /requests/{id}?delete_after_fetch=true
-
-# Method 2: Dedicated endpoint
-POST /requests/{id}/fetch-and-delete
-```
-
-**Migration Notes:**
-- **New endpoints** - add these to your client code
-- **One-time use** - response is deleted after fetch
-- **Recommended** for most use cases to prevent database bloat
 
 ## 🛠 Code Migration Examples
 
@@ -111,17 +104,18 @@ def create_and_get_response(prompt, webhook_url=None):
         time.sleep(2)
 ```
 
-#### After (Minimal Changes)
+#### After (With Model Mode)
 ```python
 import requests
 
-def create_and_get_response(prompt, webhook_url=None, prompt_mode=None):
-    # Create request with optional prompt_mode
-    payload = {"prompt": prompt}
+def create_and_get_response(prompt, webhook_url=None, model_mode="auto"):
+    # Create request with model mode
+    payload = {
+        "prompt": prompt,
+        "model_mode": model_mode
+    }
     if webhook_url:
         payload["webhook_url"] = webhook_url
-    if prompt_mode:  # New: Add prompt mode
-        payload["prompt_mode"] = prompt_mode
     
     response = requests.post(
         "https://your-api.com/requests",
@@ -142,44 +136,19 @@ def create_and_get_response(prompt, webhook_url=None, prompt_mode=None):
         elif data["status"] == "failed":
             raise Exception(data["error"])
         time.sleep(2)
-```
 
-#### After (With Cleanup)
-```python
-import requests
-
-def create_and_get_response_with_cleanup(prompt, webhook_url=None, prompt_mode=None):
-    # Create request (same as above)
-    payload = {"prompt": prompt}
-    if webhook_url:
-        payload["webhook_url"] = webhook_url
-    if prompt_mode:
-        payload["prompt_mode"] = prompt_mode
-    
-    response = requests.post(
-        "https://your-api.com/requests",
-        headers={"X-API-Key": "your-key"},
-        json=payload
+# Usage examples
+def analyze_data(data):
+    return create_and_get_response(
+        f"Analyze this data: {data}",
+        model_mode="thinking"  # Use thinking model for analysis
     )
-    request_id = response.json()["id"]
-    
-    # Poll for completion
-    while True:
-        result = requests.get(
-            f"https://your-api.com/requests/{request_id}",
-            headers={"X-API-Key": "your-key"}
-        )
-        data = result.json()
-        if data["status"] == "completed":
-            # New: Fetch and delete in one operation
-            fetch_response = requests.post(
-                f"https://your-api.com/requests/{request_id}/fetch-and-delete",
-                headers={"X-API-Key": "your-key"}
-            )
-            return fetch_response.json()["response"]
-        elif data["status"] == "failed":
-            raise Exception(data["error"])
-        time.sleep(2)
+
+def quick_answer(question):
+    return create_and_get_response(
+        question,
+        model_mode="instant"  # Use instant model for quick answers
+    )
 ```
 
 ### JavaScript/Node.js Client Migration
@@ -187,7 +156,6 @@ def create_and_get_response_with_cleanup(prompt, webhook_url=None, prompt_mode=N
 #### Before
 ```javascript
 async function createAndGetResponse(prompt, webhookUrl = null) {
-  // Create request
   const createResponse = await fetch('https://your-api.com/requests', {
     method: 'POST',
     headers: {
@@ -220,13 +188,14 @@ async function createAndGetResponse(prompt, webhookUrl = null) {
 }
 ```
 
-#### After (Enhanced)
+#### After (With Model Mode)
 ```javascript
-async function createAndGetResponse(prompt, webhookUrl = null, promptMode = null) {
-  // Create request with optional prompt_mode
-  const payload = { prompt: prompt };
+async function createAndGetResponse(prompt, webhookUrl = null, modelMode = 'auto') {
+  const payload = {
+    prompt: prompt,
+    model_mode: modelMode
+  };
   if (webhookUrl) payload.webhook_url = webhookUrl;
-  if (promptMode) payload.prompt_mode = promptMode;  // New
   
   const createResponse = await fetch('https://your-api.com/requests', {
     method: 'POST',
@@ -247,20 +216,30 @@ async function createAndGetResponse(prompt, webhookUrl = null, promptMode = null
     
     const data = await result.json();
     if (data.status === 'completed') {
-      // New: Fetch and delete in one operation
-      const fetchResponse = await fetch(`https://your-api.com/requests/${id}/fetch-and-delete`, {
-        method: 'POST',
-        headers: { 'X-API-Key': 'your-key' }
-      });
-      
-      const fetchData = await fetchResponse.json();
-      return fetchData.response;
+      return data.response;
     } else if (data.status === 'failed') {
       throw new Error(data.error);
     }
     
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
+}
+
+// Usage examples
+async function analyzeData(data) {
+  return createAndGetResponse(
+    `Analyze this data: ${data}`,
+    null,
+    'thinking'  // Use thinking model for analysis
+  );
+}
+
+async function quickAnswer(question) {
+  return createAndGetResponse(
+    question,
+    null,
+    'instant'  // Use instant model for quick answers
+  );
 }
 ```
 
@@ -273,82 +252,75 @@ curl -X POST "https://your-api.com/requests" \
   -H "X-API-Key: your-key" \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Explain quantum computing"}'
-
-# Get response
-curl "https://your-api.com/requests/123" \
-  -H "X-API-Key: your-key"
 ```
 
-#### After (With Prompt Mode)
+#### After (With Model Mode)
 ```bash
-# Create request with study mode
+# Create request with thinking model
 curl -X POST "https://your-api.com/requests" \
   -H "X-API-Key: your-key" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Explain quantum computing", "prompt_mode": "study"}'
+  -d '{"prompt": "Explain quantum computing", "model_mode": "thinking"}'
 
-# Get response and delete (recommended)
-curl -X POST "https://your-api.com/requests/123/fetch-and-delete" \
-  -H "X-API-Key: your-key"
+# Create request with instant model
+curl -X POST "https://your-api.com/requests" \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is 2+2?", "model_mode": "instant"}'
+
+# Create request with auto model (default)
+curl -X POST "https://your-api.com/requests" \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello world", "model_mode": "auto"}'
 ```
 
 ## 🚀 Deployment Migration
 
 ### Environment Variables
 
-#### New Environment Variables
-```bash
-# Optional: Set retention period for automatic cleanup
-export RETENTION_HOURS=24  # Default: 24 hours
-```
+No new environment variables are required for model mode functionality. The existing configuration remains the same:
 
-#### Updated Deployment Commands
-
-**Local Development:**
 ```bash
-# Set environment variables
 export DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
 export API_KEY="your-secure-api-key"
-export RETENTION_HOURS="24"  # New: Optional retention period
-
-# Run the server
-uvicorn server.main:app --host 0.0.0.0 --port 8000
 ```
-
-**Render Deployment:**
-1. Add `RETENTION_HOURS` environment variable in Render dashboard
-2. Set value (e.g., `24`, `48`, `168` for 1 week)
-3. Redeploy your application
 
 ### Database Migration
 
 The database schema is automatically migrated when the server starts:
 
-- **New column**: `prompt_mode` (TEXT, nullable)
+- **New column**: `model_mode` (TEXT, nullable)
 - **Automatic migration**: Runs on server startup
 - **No manual intervention required**
+
+### Worker Configuration
+
+The worker automatically handles model mode navigation. No configuration changes are needed, but you can monitor the logs for URL navigation:
+
+```
+INFO: Navigating to project URL with model: https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project?model=gpt-5-thinking
+```
 
 ## 📊 Monitoring and Maintenance
 
 ### New Log Messages
 
-Monitor your server logs for these new messages:
+Monitor your worker logs for these new messages:
 
 ```
-Started periodic cleanup task (retention: 24h)
-Cleaned up 5 old requests (retention: 24h)
+INFO: Navigating to project URL with model: https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project?model=gpt-5-thinking
 ```
 
-### Manual Cleanup
+### Model Mode Usage Tracking
 
-```bash
-# Trigger manual cleanup
-curl -X POST "https://your-api.com/admin/cleanup" \
-  -H "X-API-Key: your-key"
+You can track which model modes are being used by querying the database:
 
-# Cleanup with custom retention
-curl -X POST "https://your-api.com/admin/cleanup?retention_hours=12" \
-  -H "X-API-Key: your-key"
+```sql
+SELECT model_mode, COUNT(*) as usage_count 
+FROM requests 
+WHERE created_at > NOW() - INTERVAL '24 hours'
+GROUP BY model_mode;
 ```
 
 ## ⚠️ Breaking Changes
@@ -359,70 +331,76 @@ curl -X POST "https://your-api.com/admin/cleanup?retention_hours=12" \
 - ✅ All existing request payloads are valid
 - ✅ All existing response formats are preserved
 - ✅ Database schema is automatically migrated
+- ✅ Worker behavior unchanged for requests without model_mode
 
 ## 🎯 Best Practices
 
-### For New Implementations
+### Model Mode Selection
 
-1. **Use prompt modes** for better ChatGPT interactions:
-   - `"search"` for research queries
-   - `"study"` for educational content
-   - `null` for general conversation
-
-2. **Use fetch-and-delete** to prevent database bloat:
-   ```bash
-   POST /requests/{id}/fetch-and-delete
+1. **Use "thinking" for complex analysis**:
+   ```python
+   response = requests.post("https://your-api.com/requests", 
+     json={"prompt": "Analyze market trends", "model_mode": "thinking"})
    ```
 
-3. **Set appropriate retention period**:
-   - Short retention (6-12 hours) for high-volume applications
-   - Longer retention (24-48 hours) for debugging/audit needs
+2. **Use "instant" for quick responses**:
+   ```python
+   response = requests.post("https://your-api.com/requests", 
+     json={"prompt": "What time is it?", "model_mode": "instant"})
+   ```
 
-### For Existing Applications
+3. **Use "auto" for general use**:
+   ```python
+   response = requests.post("https://your-api.com/requests", 
+     json={"prompt": "Explain photosynthesis", "model_mode": "auto"})
+   ```
 
-1. **Gradual migration**: Add `prompt_mode` support incrementally
-2. **Test fetch-and-delete**: Ensure your application handles one-time responses
-3. **Monitor cleanup**: Watch logs for automatic cleanup activity
-4. **Adjust retention**: Set `RETENTION_HOURS` based on your needs
+### Project URL Benefits
+
+1. **Fresh context for each request**: No interference from previous conversations
+2. **Better organization**: All API requests grouped in dedicated project
+3. **Model isolation**: Different models use separate contexts
+4. **Improved reliability**: Consistent starting point for each request
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-**Q: My existing code stopped working after update**
-A: Check if you're using any hardcoded response handling that expects responses to persist. Consider switching to fetch-and-delete pattern.
+**Q: Model mode not working as expected**
+A: Ensure you're passing valid values: `"auto"`, `"thinking"`, or `"instant"`. Check worker logs for URL navigation messages.
 
-**Q: Responses are being deleted too quickly**
-A: Increase `RETENTION_HOURS` environment variable or avoid using fetch-and-delete endpoints.
+**Q: Worker not navigating to project URL**
+A: Verify the worker is receiving the model_mode parameter and check for error messages in worker logs.
 
-**Q: Database is still growing despite cleanup**
-A: Check that `RETENTION_HOURS` is set appropriately and monitor cleanup logs.
+**Q: Fresh discussions not being created**
+A: The worker automatically navigates to a fresh project URL for each request. Check worker logs for URL navigation messages.
 
-**Q: Prompt modes not working**
-A: Ensure you're passing valid values: `"search"`, `"study"`, or `null`/omitted.
+**Q: Responses seem inconsistent**
+A: Each request now starts fresh. This is expected behavior - previous context is intentionally cleared.
 
 ### Support
 
 For issues or questions:
-1. Check server logs for error messages
-2. Verify environment variables are set correctly
+1. Check worker logs for URL navigation messages
+2. Verify model_mode parameter is being passed correctly
 3. Test with minimal examples using cURL
-4. Review this migration guide for implementation patterns
+4. Monitor worker behavior during URL navigation
 
 ## 📈 Performance Impact
 
 ### Positive Impacts
-- **Reduced database size** through automatic cleanup
-- **Better ChatGPT responses** with prompt modes
-- **Improved storage efficiency** with fetch-and-delete
+- **Fresh context**: Each request gets clean starting point
+- **Better responses**: Model-specific optimization
+- **Improved organization**: Dedicated project for API requests
+- **Reduced context pollution**: No interference between requests
 
 ### Considerations
-- **One-time responses**: Plan for responses that can only be fetched once
-- **Background processing**: Cleanup runs hourly (minimal CPU impact)
-- **Network efficiency**: Fetch-and-delete reduces total requests
+- **Navigation overhead**: Worker navigates to project URL (adds ~3 seconds)
+- **Fresh discussions**: Each request starts from scratch
+- **Model-specific behavior**: Different models may have different response times
 
 ---
 
 **Migration Status**: ✅ Ready for production use
 **Backward Compatibility**: ✅ 100% compatible
-**Recommended Action**: Update client code to use new features for better performance and functionality
+**Recommended Action**: Add model_mode parameter to requests for better ChatGPT interactions
