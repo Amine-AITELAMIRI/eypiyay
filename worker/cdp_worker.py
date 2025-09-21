@@ -34,6 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pick-first", action="store_true", help="Automatically use the first matching tab")
     parser.add_argument("--index", type=int, help="Force a specific tab index")
     parser.add_argument("--exact-url", help="Select tab whose URL matches exactly")
+    parser.add_argument("--chatgpt-url", default="https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project", help="ChatGPT URL to navigate to for each request")
     return parser.parse_args()
 
 
@@ -82,15 +83,18 @@ def wait_for_new_file(send, previous: List[str], timeout: float) -> Optional[str
     return None
 
 
-def modify_chatgpt_url(send, model_mode: str) -> None:
-    """Modify the ChatGPT URL to use the project URL with model parameter"""
-    # The project URL template
-    project_url = "https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project"
+def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str) -> None:
+    """Modify the ChatGPT URL to use the configured URL with model parameter"""
+    # Use the configured ChatGPT URL
+    base_url = chatgpt_url.rstrip('/')
     
-    # Add model parameter
-    target_url = f"{project_url}?model=gpt-5-{model_mode}"
+    # Add model parameter if model_mode is specified
+    if model_mode:
+        target_url = f"{base_url}?model=gpt-5-{model_mode}"
+    else:
+        target_url = base_url
     
-    logger.info(f"Navigating to project URL with model: {target_url}")
+    logger.info(f"Navigating to ChatGPT URL: {target_url}")
     
     # Navigate to the new URL
     send("Page.navigate", {"url": target_url})
@@ -99,7 +103,7 @@ def modify_chatgpt_url(send, model_mode: str) -> None:
     time.sleep(3)
 
 
-def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, response_timeout: float) -> Dict[str, Any]:
+def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, response_timeout: float, chatgpt_url: str) -> Dict[str, Any]:
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
 
@@ -115,7 +119,7 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, re
         # Handle model mode by modifying URL if specified
         model_mode = job.get("model_mode")
         if model_mode:
-            modify_chatgpt_url(send, model_mode)
+            modify_chatgpt_url(send, model_mode, chatgpt_url)
 
         prompt = job["prompt"]
         send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPrompt = {json.dumps(prompt)};"})
@@ -235,7 +239,7 @@ def main() -> int:
         logger.info("Processing request %s", request_id)
 
         try:
-            result = run_prompt(ws_url, script, job, args.timeout, args.response_timeout)
+            result = run_prompt(ws_url, script, job, args.timeout, args.response_timeout, args.chatgpt_url)
         except Exception as exc:
             logger.error("Prompt %s failed: %s", request_id, exc)
             try:
