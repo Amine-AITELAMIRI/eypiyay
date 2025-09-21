@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: chatgpt-relay-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  - name: chatgpt-relay-db
+    plan: free
+    databaseName: chatgpt_relay
+    user: chatgpt_relay_user

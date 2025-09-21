@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ChatGPT relay worker")
     parser.add_argument("server", help="Base URL of the relay server, e.g. http://localhost:8000")
     parser.add_argument("worker_id", help="Identifier for this worker instance")
+    parser.add_argument("api_key", help="API key for authentication")
     parser.add_argument("filter", nargs="?", help="Substring to match in the target tab URL/title")
     parser.add_argument("--script", default="bookmarklet.js", help="Path to the bookmarklet script")
     parser.add_argument("--host", default="localhost", help="Chrome remote debugging host")
@@ -140,26 +141,31 @@ def resolve_target(args: argparse.Namespace) -> Dict[str, Any]:
     return {"target": target, "ws_url": ws_url}
 
 
-def claim_request(server: str, worker_id: str) -> Optional[Dict[str, Any]]:
-    response = requests.post(f"{server.rstrip('/')}/worker/claim", json={"worker_id": worker_id})
+def claim_request(server: str, worker_id: str, api_key: str) -> Optional[Dict[str, Any]]:
+    headers = {"X-API-Key": api_key}
+    response = requests.post(f"{server.rstrip('/')}/worker/claim", json={"worker_id": worker_id}, headers=headers)
     if response.status_code == 404:
         return None
     response.raise_for_status()
     return response.json()
 
 
-def post_completion(server: str, request_id: int, result: Dict[str, Any]) -> None:
+def post_completion(server: str, request_id: int, result: Dict[str, Any], api_key: str) -> None:
+    headers = {"X-API-Key": api_key}
     response = requests.post(
         f"{server.rstrip('/')}/worker/{request_id}/complete",
         json={"response": json.dumps(result)},
+        headers=headers,
     )
     response.raise_for_status()
 
 
-def post_failure(server: str, request_id: int, message: str) -> None:
+def post_failure(server: str, request_id: int, message: str, api_key: str) -> None:
+    headers = {"X-API-Key": api_key}
     response = requests.post(
         f"{server.rstrip('/')}/worker/{request_id}/fail",
         json={"error": message},
+        headers=headers,
     )
     response.raise_for_status()
 
@@ -185,7 +191,7 @@ def main() -> int:
 
     while True:
         try:
-            job = claim_request(args.server, args.worker_id)
+            job = claim_request(args.server, args.worker_id, args.api_key)
         except requests.RequestException as exc:
             logger.error("Server communication error: %s", exc)
             time.sleep(args.poll_interval)
@@ -205,13 +211,13 @@ def main() -> int:
         except Exception as exc:
             logger.error("Prompt %s failed: %s", request_id, exc)
             try:
-                post_failure(args.server, request_id, str(exc))
+                post_failure(args.server, request_id, str(exc), args.api_key)
             except requests.RequestException as post_exc:
                 logger.error("Failed to report failure for %s: %s", request_id, post_exc)
             continue
 
         try:
-            post_completion(args.server, request_id, result)
+            post_completion(args.server, request_id, result, args.api_key)
             logger.info("Request %s completed", request_id)
         except requests.RequestException as exc:
             logger.error("Failed to report completion for %s: %s", request_id, exc)
