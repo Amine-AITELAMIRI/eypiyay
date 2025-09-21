@@ -84,7 +84,16 @@ javascript:(async () => {
       return;
     }
   
-    const promptText = prompt("Prompt to send to ChatGPT:");
+    const promptTextSource = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")
+      ? window.__chatgptBookmarkletPrompt
+      : prompt("Prompt to send to ChatGPT:");
+    if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")) {
+      delete window.__chatgptBookmarkletPrompt;
+    }
+    const promptText =
+      promptTextSource !== null && promptTextSource !== undefined
+        ? String(promptTextSource)
+        : "";
     if (!promptText) {
       return;
     }
@@ -247,7 +256,7 @@ javascript:(async () => {
       content.style.cssText =
         "background:white;padding:20px;border-radius:8px;max-width:80%;max-height:80%;overflow-y:auto;position:relative";
       const closeBtn = document.createElement("button");
-      closeBtn.textContent = "�";
+      closeBtn.textContent = "x";
       closeBtn.style.cssText =
         "position:absolute;top:10px;right:15px;background:none;border:none;font-size:24px;cursor:pointer;color:#666";
       closeBtn.onclick = () => document.body.removeChild(modal);
@@ -309,3 +318,4 @@ javascript:(async () => {
       showToast("No valid response text found", "warning");
     }
   })();
+
