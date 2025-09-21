@@ -244,28 +244,23 @@ javascript:(async () => {
   
     const waitForResponseMarker = async () => {
       for (let i = 0; i < 120; i += 1) {
-        // Check the composer submit button state - this is the most reliable indicator
-        const composerSubmitButton = document.querySelector('#composer-submit-button');
+        // Check for the stop button (square icon) - indicates still processing
+        const stopButton = document.querySelector('button[data-testid="stop-button"]');
         
-        if (composerSubmitButton) {
-          // Check if the button has the stop button (square icon) - indicates still processing
-          const stopButton = composerSubmitButton.querySelector('button[data-testid="stop-button"]');
-          
-          // Check if the button has the voice mode button (sound waves icon) - indicates finished
-          const voiceButton = composerSubmitButton.querySelector('button[data-testid="composer-speech-button"]');
-          
-          // If we have the voice button and no stop button, ChatGPT has finished processing
-          if (voiceButton && !stopButton) {
-            console.log("ChatGPT finished processing - voice button detected");
-            return voiceButton;
-          }
-          
-          // If we still have the stop button, ChatGPT is still processing
-          if (stopButton) {
-            console.log("ChatGPT still processing - stop button detected");
-            await sleep(250);
-            continue;
-          }
+        // Check for the voice mode button (sound waves icon) - indicates finished
+        const voiceButton = document.querySelector('button[data-testid="composer-speech-button"]');
+        
+        // If we have the voice button and no stop button, ChatGPT has finished processing
+        if (voiceButton && !stopButton) {
+          console.log("ChatGPT finished processing - voice button detected");
+          return voiceButton;
+        }
+        
+        // If we still have the stop button, ChatGPT is still processing
+        if (stopButton) {
+          console.log("ChatGPT still processing - stop button detected");
+          await sleep(250);
+          continue;
         }
         
         await sleep(250);
