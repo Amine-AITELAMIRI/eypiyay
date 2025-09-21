@@ -97,6 +97,95 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/admin/database/requests")
+def view_requests(
+    limit: int = Query(10, description="Number of records to return"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    api_key: str = Depends(verify_api_key)
+) -> dict[str, list]:
+    """
+    View database requests (development/admin use only).
+    Use with caution in production environments.
+    """
+    try:
+        with database.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Build query with optional status filter
+                query = "SELECT * FROM requests"
+                params = []
+                
+                if status:
+                    query += " WHERE status = %s"
+                    params.append(status)
+                
+                query += " ORDER BY created_at DESC LIMIT %s"
+                params.append(limit)
+                
+                cur.execute(query, params)
+                rows = cur.fetchall()
+                
+                # Get column names
+                columns = [desc[0] for desc in cur.description]
+                
+                # Convert to list of dictionaries
+                records = []
+                for row in rows:
+                    record = dict(zip(columns, row))
+                    # Convert datetime objects to strings
+                    for key, value in record.items():
+                        if hasattr(value, 'isoformat'):
+                            record[key] = value.isoformat()
+                    records.append(record)
+                
+                return {
+                    "status": "success",
+                    "count": len(records),
+                    "records": records
+                }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+
+@app.get("/admin/database/stats")
+def database_stats(api_key: str = Depends(verify_api_key)) -> dict[str, any]:
+    """
+    Get database statistics (development/admin use only).
+    """
+    try:
+        with database.get_connection() as conn:
+            with conn.cursor() as cur:
+                # Get total counts by status
+                cur.execute("""
+                    SELECT status, COUNT(*) as count 
+                    FROM requests 
+                    GROUP BY status
+                """)
+                status_counts = dict(cur.fetchall())
+                
+                # Get total records
+                cur.execute("SELECT COUNT(*) FROM requests")
+                total_count = cur.fetchone()[0]
+                
+                # Get oldest and newest records
+                cur.execute("""
+                    SELECT 
+                        MIN(created_at) as oldest,
+                        MAX(created_at) as newest
+                    FROM requests
+                """)
+                oldest, newest = cur.fetchone()
+                
+                return {
+                    "status": "success",
+                    "total_requests": total_count,
+                    "status_breakdown": status_counts,
+                    "oldest_request": oldest.isoformat() if oldest else None,
+                    "newest_request": newest.isoformat() if newest else None
+                }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+
 @app.post("/admin/cleanup")
 def manual_cleanup(
     retention_hours: int = Query(RETENTION_HOURS, description="Hours to retain completed requests"),

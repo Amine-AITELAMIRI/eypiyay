@@ -66,6 +66,8 @@ All endpoints require API key authentication via the `X-API-Key` header.
 - `GET /requests/{id}?delete_after_fetch=true` -> returns status and optionally deletes after fetch
 - `POST /requests/{id}/fetch-and-delete` -> returns response and immediately deletes from database
 - `POST /admin/cleanup?retention_hours=24` -> manually trigger cleanup of old requests
+- `GET /admin/database/requests?limit=10&status=completed` -> view database records
+- `GET /admin/database/stats` -> get database statistics
 - Worker-only endpoints:
   - `POST /worker/claim` `{ "worker_id": "worker-1" }`
   - `POST /worker/{id}/complete` `{ "response": "..." }`
@@ -164,6 +166,37 @@ curl -X POST "https://your-api.com/admin/cleanup?retention_hours=12" \
 # Set retention period (default: 24 hours)
 export RETENTION_HOURS=48  # Keep requests for 48 hours
 ```
+
+## Viewing Database Content
+
+### Quick Database Access
+```bash
+# View recent requests
+curl "https://your-api.com/admin/database/requests?limit=10" \
+  -H "X-API-Key: your-key"
+
+# Get database statistics
+curl "https://your-api.com/admin/database/stats" \
+  -H "X-API-Key: your-key"
+
+# View completed requests only
+curl "https://your-api.com/admin/database/requests?status=completed" \
+  -H "X-API-Key: your-key"
+```
+
+### Direct Database Access
+```bash
+# Connect to database
+psql $DATABASE_URL
+
+# View all requests
+SELECT * FROM requests ORDER BY created_at DESC LIMIT 10;
+
+# View by status
+SELECT * FROM requests WHERE status = 'completed';
+```
+
+See [DATABASE_VIEWING_GUIDE.md](DATABASE_VIEWING_GUIDE.md) for comprehensive database viewing options.
 
 ## Running the Worker
 
