@@ -84,9 +84,34 @@ javascript:(async () => {
       }
     };
   
-    const ready = document.querySelector('main[id="main"]');
+    // Try multiple selectors to detect ChatGPT UI
+    const chatgptSelectors = [
+      'main[id="main"]',
+      'main',
+      '[data-testid="conversation-turn-1"]',
+      '[data-testid="conversation-turn-2"]',
+      '.conversation',
+      'div[role="main"]',
+      '#__next',
+      'body'
+    ];
+    
+    let ready = null;
+    for (const selector of chatgptSelectors) {
+      ready = document.querySelector(selector);
+      if (ready) {
+        console.log(`✅ ChatGPT UI detected using selector: ${selector}`);
+        break;
+      }
+    }
+    
     if (!ready) {
-      alert("ChatGPT UI not detected on this page.");
+      console.log("❌ ChatGPT UI not detected. Available selectors:");
+      chatgptSelectors.forEach(selector => {
+        const element = document.querySelector(selector);
+        console.log(`  ${selector}: ${element ? "Found" : "Not found"}`);
+      });
+      alert("ChatGPT UI not detected on this page. Check console for details.");
       return;
     }
   
@@ -107,15 +132,39 @@ javascript:(async () => {
     showToast("Sending prompt to ChatGPT...", "info");
   
     const waitForComposer = async () => {
+      console.log("🔍 Looking for ChatGPT composer...");
+      
+      const composerSelectors = [
+        'div[contenteditable="true"].ProseMirror',
+        'div[contenteditable="true"]',
+        'textarea[placeholder*="Ask"]',
+        'textarea[placeholder*="Message"]',
+        'input[type="text"]',
+        '.composer-input',
+        '[data-testid="composer-input"]'
+      ];
+      
       for (let i = 0; i < 40; i += 1) {
-        const node = document.querySelector(
-          'div[contenteditable="true"].ProseMirror'
-        );
-        if (node) {
-          return node;
+        // Debug every 10 iterations
+        if (i % 10 === 0) {
+          console.log(`🔍 Composer detection attempt ${i}:`);
+          composerSelectors.forEach(selector => {
+            const element = document.querySelector(selector);
+            console.log(`  ${selector}: ${element ? "Found" : "Not found"}`);
+          });
+        }
+        
+        for (const selector of composerSelectors) {
+          const node = document.querySelector(selector);
+          if (node) {
+            console.log(`✅ Composer found using selector: ${selector}`);
+            return node;
+          }
         }
         await sleep(250);
       }
+      
+      console.log("❌ Composer not found after 40 attempts");
       return null;
     };
   
