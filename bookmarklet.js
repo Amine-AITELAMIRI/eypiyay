@@ -111,6 +111,39 @@ javascript:(async () => {
       alert("ChatGPT UI not detected on this page. Please ensure you're on the ChatGPT website (chatgpt.com) and try again.");
       return;
     }
+
+    // Check if we're on a project page and create new discussion if needed
+    const isProjectPage = window.location.href.includes('/g/') && window.location.href.includes('/project');
+    if (isProjectPage) {
+      console.log("Detected project page, ensuring new discussion");
+      
+      // Look for "New chat" or "Start new conversation" button
+      const newChatSelectors = [
+        'button[data-testid="new-chat-button"]',
+        'button[aria-label*="New chat"]',
+        'button[aria-label*="Start new"]',
+        'button[title*="New chat"]',
+        'button[title*="Start new"]',
+        'a[href*="/c/"]',  // New chat links
+        'button:contains("New chat")',
+        'button:contains("Start new")'
+      ];
+      
+      let newChatButton = null;
+      for (const selector of newChatSelectors) {
+        newChatButton = document.querySelector(selector);
+        if (newChatButton) {
+          console.log(`Found new chat button: ${selector}`);
+          break;
+        }
+      }
+      
+      if (newChatButton) {
+        console.log("Clicking new chat button to start fresh discussion");
+        newChatButton.click();
+        await sleep(1000); // Wait for new chat to load
+      }
+    }
   
     const promptTextSource = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")
       ? window.__chatgptBookmarkletPrompt

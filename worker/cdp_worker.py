@@ -82,6 +82,23 @@ def wait_for_new_file(send, previous: List[str], timeout: float) -> Optional[str
     return None
 
 
+def modify_chatgpt_url(send, model_mode: str) -> None:
+    """Modify the ChatGPT URL to use the project URL with model parameter"""
+    # The project URL template
+    project_url = "https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project"
+    
+    # Add model parameter
+    target_url = f"{project_url}?model=gpt-5-{model_mode}"
+    
+    logger.info(f"Navigating to project URL with model: {target_url}")
+    
+    # Navigate to the new URL
+    send("Page.navigate", {"url": target_url})
+    
+    # Wait for page to load
+    time.sleep(3)
+
+
 def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, response_timeout: float) -> Dict[str, Any]:
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
@@ -94,6 +111,11 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, re
     try:
         send("Runtime.enable")
         saved_before = get_saved_files(send)
+
+        # Handle model mode by modifying URL if specified
+        model_mode = job.get("model_mode")
+        if model_mode:
+            modify_chatgpt_url(send, model_mode)
 
         prompt = job["prompt"]
         send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPrompt = {json.dumps(prompt)};"})

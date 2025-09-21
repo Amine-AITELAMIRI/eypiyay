@@ -77,6 +77,67 @@ while True:
     time.sleep(5)  # Wait 5 seconds
 ```
 
+### Model Mode Selection (NEW!)
+
+You can now specify which ChatGPT model to use for each request:
+
+```python
+# Use thinking model for complex analysis
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "Analyze the pros and cons of different database architectures",
+        "model_mode": "thinking"  # Uses gpt-5-thinking
+    }
+)
+
+# Use instant model for quick responses
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "What is 2+2?",
+        "model_mode": "instant"  # Uses gpt-5-instant
+    }
+)
+
+# Use auto model (default behavior)
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "Explain machine learning",
+        "model_mode": "auto"  # Uses default model selection
+    }
+)
+```
+
+**Available Model Modes:**
+- `"auto"` - Default ChatGPT behavior (recommended for most use cases)
+- `"thinking"` - Uses gpt-5-thinking for thorough, analytical responses
+- `"instant"` - Uses gpt-5-instant for fast, concise responses
+
+### Project-Based URLs and New Discussions
+
+When you specify a `model_mode`, the worker automatically navigates to a dedicated ChatGPT project URL:
+```
+https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project?model=gpt-5-{model_mode}
+```
+
+**Benefits:**
+- **Fresh Discussions**: Each request starts a new conversation thread
+- **Model Isolation**: Different model modes use separate project contexts
+- **Better Organization**: All API requests are grouped in a dedicated project
+- **No Context Pollution**: Previous conversations don't interfere with new requests
+
+**How it Works:**
+1. Worker detects `model_mode` in the request
+2. Navigates to the project URL with the specified model parameter
+3. Automatically creates a new discussion/chat thread
+4. Executes the prompt in the fresh context
+5. Returns the response without affecting other conversations
+
 ### With Webhook (Optional Enhancement)
 
 ```python

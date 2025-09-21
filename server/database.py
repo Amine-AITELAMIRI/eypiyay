@@ -20,6 +20,7 @@ class RequestRecord:
     webhook_url: Optional[str]
     webhook_delivered: bool
     prompt_mode: Optional[str]
+    model_mode: Optional[str]
     created_at: str
     updated_at: str
 
@@ -39,6 +40,7 @@ def _row_to_record(row: tuple) -> RequestRecord:
         webhook_url=row[8],  # Added by migration at position 8
         webhook_delivered=row[9],  # Added by migration at position 9
         prompt_mode=row[10],  # Added by migration at position 10
+        model_mode=row[11],  # Added by migration at position 11
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -87,6 +89,14 @@ def init_db() -> None:
             except psycopg.errors.DuplicateColumn:
                 conn.rollback()  # Rollback the failed transaction
                 pass  # Column already exists
+            
+            # Add model_mode column if it doesn't exist (migration)
+            try:
+                cur.execute("ALTER TABLE requests ADD COLUMN model_mode TEXT")
+                conn.commit()
+            except psycopg.errors.DuplicateColumn:
+                conn.rollback()  # Rollback the failed transaction
+                pass  # Column already exists
 
 
 @contextmanager
@@ -100,12 +110,12 @@ def get_connection() -> Generator[psycopg.Connection, None, None]:
         conn.close()
 
 
-def create_request(prompt: str, webhook_url: Optional[str] = None, prompt_mode: Optional[str] = None) -> RequestRecord:
+def create_request(prompt: str, webhook_url: Optional[str] = None, prompt_mode: Optional[str] = None, model_mode: Optional[str] = None) -> RequestRecord:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO requests (prompt, status, webhook_url, prompt_mode) VALUES (%s, 'pending', %s, %s) RETURNING id",
-                (prompt, webhook_url, prompt_mode),
+                "INSERT INTO requests (prompt, status, webhook_url, prompt_mode, model_mode) VALUES (%s, 'pending', %s, %s, %s) RETURNING id",
+                (prompt, webhook_url, prompt_mode, model_mode),
             )
             request_id = cur.fetchone()[0]
             conn.commit()
