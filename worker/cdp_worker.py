@@ -28,7 +28,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="localhost", help="Chrome remote debugging host")
     parser.add_argument("--port", type=int, default=9222, help="Chrome remote debugging port")
     parser.add_argument("--timeout", type=float, default=5.0, help="CDP network timeout")
-    parser.add_argument("--response-timeout", type=float, default=120.0, help="Seconds to wait for ChatGPT response")
     parser.add_argument("--poll-interval", type=float, default=3.0, help="Seconds to wait before re-polling when idle")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Logging level")
     parser.add_argument("--pick-first", action="store_true", help="Automatically use the first matching tab")
@@ -70,17 +69,15 @@ def get_file_content(send, key: str) -> Optional[str]:
     return result.get("value")
 
 
-def wait_for_new_file(send, previous: List[str], timeout: float) -> Optional[str]:
-    deadline = time.time() + timeout
+def wait_for_new_file(send, previous: List[str]) -> Optional[str]:
     previous_set = set(previous)
-    while time.time() < deadline:
+    while True:
         current = get_saved_files(send)
         if current:
             for name in current:
                 if name not in previous_set:
                     return name
         time.sleep(1.0)
-    return None
 
 
 def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str) -> None:
@@ -103,7 +100,7 @@ def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str) -> None:
     time.sleep(3)
 
 
-def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, response_timeout: float, chatgpt_url: str) -> Dict[str, Any]:
+def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, chatgpt_url: str) -> Dict[str, Any]:
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
 
@@ -137,7 +134,7 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, re
             },
         )
 
-        new_file = wait_for_new_file(send, saved_before, response_timeout)
+        new_file = wait_for_new_file(send, saved_before)
         if not new_file:
             raise RuntimeError("Timed out waiting for bookmarklet to persist response")
 
@@ -239,7 +236,7 @@ def main() -> int:
         logger.info("Processing request %s", request_id)
 
         try:
-            result = run_prompt(ws_url, script, job, args.timeout, args.response_timeout, args.chatgpt_url)
+            result = run_prompt(ws_url, script, job, args.timeout, args.chatgpt_url)
         except Exception as exc:
             logger.error("Prompt %s failed: %s", request_id, exc)
             try:
