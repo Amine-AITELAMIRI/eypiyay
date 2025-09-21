@@ -1,10 +1,12 @@
 import os
+import asyncio
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends, Header
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
+from pydantic import BaseModel, Field, HttpUrl
 
 from . import database
+from . import webhook
 
 app = FastAPI(title="ChatGPT Relay Server", version="0.1.0")
 
@@ -23,6 +25,7 @@ def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> str:
 
 class CreateRequest(BaseModel):
     prompt: str = Field(..., min_length=1, description="Prompt text to send to ChatGPT")
+    webhook_url: Optional[HttpUrl] = Field(None, description="URL to receive webhook notifications when request completes")
 
 
 class RequestResponse(BaseModel):
@@ -32,6 +35,8 @@ class RequestResponse(BaseModel):
     response: Optional[str]
     error: Optional[str]
     worker_id: Optional[str]
+    webhook_url: Optional[str]
+    webhook_delivered: bool
     created_at: str
     updated_at: str
 
@@ -64,7 +69,8 @@ def health() -> dict[str, str]:
 
 @app.post("/requests", response_model=RequestResponse, status_code=201)
 def create_request(payload: CreateRequest, api_key: str = Depends(verify_api_key)) -> RequestResponse:
-    record = database.create_request(payload.prompt)
+    webhook_url = str(payload.webhook_url) if payload.webhook_url else None
+    record = database.create_request(payload.prompt, webhook_url)
     return RequestResponse(**database.serialize(record))
 
 
@@ -86,18 +92,22 @@ def claim_request(payload: ClaimRequest, api_key: str = Depends(verify_api_key))
 
 
 @app.post("/worker/{request_id}/complete", response_model=RequestResponse)
-def complete_request(request_id: int, payload: CompletionPayload, api_key: str = Depends(verify_api_key)) -> RequestResponse:
+def complete_request(request_id: int, payload: CompletionPayload, background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)) -> RequestResponse:
     try:
         record = database.complete_request(request_id, payload.response)
+        # Schedule webhook delivery in background
+        background_tasks.add_task(webhook.send_completion_webhook, request_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return RequestResponse(**database.serialize(record))
 
 
 @app.post("/worker/{request_id}/fail", response_model=RequestResponse)
-def fail_request(request_id: int, payload: FailurePayload, api_key: str = Depends(verify_api_key)) -> RequestResponse:
+def fail_request(request_id: int, payload: FailurePayload, background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)) -> RequestResponse:
     try:
         record = database.fail_request(request_id, payload.error)
+        # Schedule webhook delivery in background
+        background_tasks.add_task(webhook.send_failure_webhook, request_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return RequestResponse(**database.serialize(record))

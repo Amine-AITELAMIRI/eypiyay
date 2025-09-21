@@ -16,14 +16,16 @@ class RequestRecord:
     response: Optional[str]
     error: Optional[str]
     worker_id: Optional[str]
+    webhook_url: Optional[str]
+    webhook_delivered: bool
     created_at: str
     updated_at: str
 
 
 def _row_to_record(row: tuple) -> RequestRecord:
     # Convert datetime objects to ISO format strings
-    created_at = row[6].isoformat() if hasattr(row[6], 'isoformat') else str(row[6])
-    updated_at = row[7].isoformat() if hasattr(row[7], 'isoformat') else str(row[7])
+    created_at = row[8].isoformat() if hasattr(row[8], 'isoformat') else str(row[8])
+    updated_at = row[9].isoformat() if hasattr(row[9], 'isoformat') else str(row[9])
     
     return RequestRecord(
         id=row[0],
@@ -32,6 +34,8 @@ def _row_to_record(row: tuple) -> RequestRecord:
         response=row[3],
         error=row[4],
         worker_id=row[5],
+        webhook_url=row[6],
+        webhook_delivered=row[7],
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -49,6 +53,8 @@ def init_db() -> None:
                     response TEXT,
                     error TEXT,
                     worker_id TEXT,
+                    webhook_url TEXT,
+                    webhook_delivered BOOLEAN NOT NULL DEFAULT FALSE,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
@@ -68,12 +74,12 @@ def get_connection() -> Generator[psycopg.Connection, None, None]:
         conn.close()
 
 
-def create_request(prompt: str) -> RequestRecord:
+def create_request(prompt: str, webhook_url: Optional[str] = None) -> RequestRecord:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO requests (prompt, status) VALUES (%s, 'pending') RETURNING id",
-                (prompt,),
+                "INSERT INTO requests (prompt, status, webhook_url) VALUES (%s, 'pending', %s) RETURNING id",
+                (prompt, webhook_url),
             )
             request_id = cur.fetchone()[0]
             conn.commit()
@@ -138,6 +144,17 @@ def fail_request(request_id: int, error: str) -> RequestRecord:
                 raise KeyError(f"Request {request_id} not found")
             conn.commit()
     return get_request(request_id)
+
+
+def mark_webhook_delivered(request_id: int) -> None:
+    """Mark webhook as delivered for a request"""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE requests SET webhook_delivered = TRUE, updated_at = NOW() WHERE id = %s",
+                (request_id,),
+            )
+            conn.commit()
 
 
 def serialize(record: RequestRecord) -> Dict[str, Any]:
