@@ -60,19 +60,23 @@ def init_db() -> None:
                 )
                 """
             )
+            conn.commit()
             
-            # Add webhook columns if they don't exist (migration)
+            # Add webhook_url column if it doesn't exist (migration)
             try:
                 cur.execute("ALTER TABLE requests ADD COLUMN webhook_url TEXT")
+                conn.commit()
             except psycopg.errors.DuplicateColumn:
+                conn.rollback()  # Rollback the failed transaction
                 pass  # Column already exists
             
+            # Add webhook_delivered column if it doesn't exist (migration)
             try:
                 cur.execute("ALTER TABLE requests ADD COLUMN webhook_delivered BOOLEAN NOT NULL DEFAULT FALSE")
+                conn.commit()
             except psycopg.errors.DuplicateColumn:
+                conn.rollback()  # Rollback the failed transaction
                 pass  # Column already exists
-            
-            conn.commit()
 
 
 @contextmanager
