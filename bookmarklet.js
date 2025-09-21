@@ -344,6 +344,29 @@ javascript:(async () => {
     showToast("Response detected! Waiting for text to load...", "info");
     await sleep(2000);
   
+    const cleanResponseText = (text) => {
+      // Remove common UI artifacts that appear in ChatGPT responses
+      const artifacts = [
+        /^markdownCopy code\s*/gi,
+        /^Copy code\s*/gi,
+        /^markdown\s*/gi,
+        /^Copy\s*/gi,
+        /^code\s*/gi,
+        /\s*Copy code\s*$/gi,
+        /\s*markdownCopy code\s*$/gi,
+        /\s*Copy\s*$/gi,
+        /\s*markdown\s*$/gi,
+        /\s*code\s*$/gi
+      ];
+      
+      let cleanedText = text;
+      artifacts.forEach(pattern => {
+        cleanedText = cleanedText.replace(pattern, '');
+      });
+      
+      return cleanedText.trim();
+    };
+
     const waitForResponseText = async () => {
       for (let i = 0; i < 20; i += 1) {
         // Try multiple selectors for response text
@@ -360,9 +383,12 @@ javascript:(async () => {
           // Get the last (most recent) element
           for (let j = elements.length - 1; j >= 0; j--) {
             const element = elements[j];
-            const text = element.textContent.trim();
-            if (text && text.length > 10) { // Ensure it's substantial content
-              return text;
+            const rawText = element.textContent.trim();
+            if (rawText && rawText.length > 10) { // Ensure it's substantial content
+              const cleanedText = cleanResponseText(rawText);
+              if (cleanedText && cleanedText.length > 5) { // Ensure cleaned text is still substantial
+                return cleanedText;
+              }
             }
           }
         }
