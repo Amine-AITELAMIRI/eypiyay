@@ -335,20 +335,39 @@ javascript:(async () => {
   
     const cleanResponseText = (text) => {
       // Remove common UI artifacts that appear in ChatGPT responses
+      
+      // Common programming languages and formats that ChatGPT recognizes
+      const languages = [
+        'python', 'javascript', 'java', 'c', 'cpp', 'csharp', 'ruby', 'php', 'swift', 'kotlin',
+        'go', 'rust', 'typescript', 'sql', 'html', 'css', 'bash', 'shell', 'json', 'xml',
+        'yaml', 'markdown', 'perl', 'r', 'matlab', 'vba', 'scala', 'lua', 'dart', 'groovy',
+        'objectivec', 'powershell', 'haskell', 'elixir', 'clojure', 'fsharp', 'assembly',
+        'vbnet', 'pascal', 'fortran', 'cobol', 'ada', 'prolog', 'lisp', 'scheme', 'erlang',
+        'ocaml', 'racket', 'verilog', 'vhdl', 'coffeescript', 'jsx', 'tsx', 'dockerfile',
+        'makefile', 'cmake', 'gradle', 'ini', 'toml', 'csv', 'tsv', 'latex', 'diff', 'patch',
+        'nginx', 'apache', 'http', 'dos', 'bat', 'cmd', 'autoit', 'ahk', 'vbscript',
+        'actionscript', 'as3', 'applescript', 'vb', 'smalltalk', 'tcl', 'd', 'nim', 'crystal',
+        'julia', 'brainfuck', 'lolcode', 'bf', 'forth', 'dylan', 'eiffel', 'md'
+      ];
+      
+      // Generate patterns dynamically for all languages
       const artifacts = [
-        /^mdCopy code\s*/gi,           // Handle "mdCopy code" at start
-        /^markdownCopy code\s*/gi,     // Handle "markdownCopy code" at start
+        // Generic patterns
         /^Copy code\s*/gi,             // Handle "Copy code" at start
-        /^markdown\s*/gi,              // Handle "markdown" at start
         /^Copy\s*/gi,                  // Handle "Copy" at start
         /^code\s*/gi,                  // Handle "code" at start
-        /\s*mdCopy code\s*$/gi,        // Handle "mdCopy code" at end
+        /^markdown\s*/gi,              // Handle "markdown" at start
         /\s*Copy code\s*$/gi,          // Handle "Copy code" at end
-        /\s*markdownCopy code\s*$/gi,  // Handle "markdownCopy code" at end
         /\s*Copy\s*$/gi,               // Handle "Copy" at end
         /\s*markdown\s*$/gi,           // Handle "markdown" at end
         /\s*code\s*$/gi                // Handle "code" at end
       ];
+      
+      // Add language-specific patterns
+      languages.forEach(lang => {
+        artifacts.push(new RegExp(`^${lang}Copy code\\s*`, 'gi'));  // At start
+        artifacts.push(new RegExp(`\\s*${lang}Copy code\\s*$`, 'gi')); // At end
+      });
       
       let cleanedText = text;
       artifacts.forEach(pattern => {
