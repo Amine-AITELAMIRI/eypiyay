@@ -235,7 +235,7 @@ javascript:(async () => {
     }
 
     // Prepend markdown formatting instruction to make responses easier to parse for API clients
-    const markdownInstruction = "give me the answer in a markdown format script (only give the answer in the script md)\n\n";
+    const markdownInstruction = "IMPORTANT: You MUST respond ONLY with plain markdown script. Do NOT include any explanatory text, introductions, conclusions, or commentary. Do NOT say 'here is your answer' or 'here is the markdown'. Do NOT wrap the markdown in code blocks or backticks. Do NOT add any HTML tags or formatting outside of markdown syntax. Respond with ONLY the raw markdown content that directly answers the question. Start immediately with the markdown content and end immediately after it. No additional text before or after the markdown.\n\n";
     const finalPromptText = markdownInstruction + promptText;
   
     try {

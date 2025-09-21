@@ -1,0 +1,1 @@
+javascript:(async () => { const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); const showToast = (message, type = "success") => {
