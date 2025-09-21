@@ -235,7 +235,7 @@ javascript:(async () => {
     }
 
     // Prepend markdown formatting instruction to make responses easier to parse for API clients
-    const markdownInstruction = "CRITICAL: You MUST respond with ONLY raw markdown source code (the text with markdown syntax, NOT the rendered/displayed version).\n\nEXAMPLES:\n- WRONG (rendered): A heading (displayed as large text)\n- CORRECT (raw): # A heading\n\n- WRONG (rendered): Bold text (displayed as bold)\n- CORRECT (raw): **Bold text**\n\n- WRONG (rendered): A list item (displayed as bullet)\n- CORRECT (raw): - A list item\n\nDo NOT include any explanatory text, introductions, conclusions, or commentary. Do NOT say 'here is your answer' or 'here is the markdown'. Do NOT wrap the entire response in code blocks or backticks. Do NOT add any HTML tags. Respond with ONLY the raw markdown source code that directly answers the question. Start immediately with the markdown source and end immediately after it. No additional text before or after the markdown script.\n\n";
+    const markdownInstruction = "System: You are ChatGPT.\nPlease obey these rules:\n1. All your output must be in *raw Markdown syntax*. Do **not** render headings, bold, italics, bullet lists, or code blocks—show the literal Markdown (with `#`, `*`, `[ ]` etc.).\n2. Wrap the *entire* response inside a fenced code block using three backticks ```\n3. If you include any code blocks inside your content, use a different fence so that the outer fence is not broken (for example ~~~ or another distinctive delimiter).\n4. Do not add any extra explanation about formatting. Only provide the content requested in raw Markdown.\n\n";
     const finalPromptText = markdownInstruction + promptText;
   
     try {
