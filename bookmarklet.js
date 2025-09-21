@@ -241,7 +241,31 @@ javascript:(async () => {
   
     const waitForResponseMarker = async () => {
       for (let i = 0; i < 120; i += 1) {
-        // Look for the complete action buttons container - this indicates response is fully finished
+        // Check the composer submit button state - this is the most reliable indicator
+        const composerSubmitButton = document.querySelector('#composer-submit-button');
+        
+        if (composerSubmitButton) {
+          // Check if the button has the stop button (square icon) - indicates still processing
+          const stopButton = composerSubmitButton.querySelector('button[data-testid="stop-button"]');
+          
+          // Check if the button has the voice mode button (sound waves icon) - indicates finished
+          const voiceButton = composerSubmitButton.querySelector('button[data-testid="composer-speech-button"]');
+          
+          // If we have the voice button and no stop button, ChatGPT has finished processing
+          if (voiceButton && !stopButton) {
+            console.log("ChatGPT finished processing - voice button detected");
+            return voiceButton;
+          }
+          
+          // If we still have the stop button, ChatGPT is still processing
+          if (stopButton) {
+            console.log("ChatGPT still processing - stop button detected");
+            await sleep(250);
+            continue;
+          }
+        }
+        
+        // Fallback: Look for the complete action buttons container - this indicates response is fully finished
         const actionButtonsContainer = document.querySelector(
           'div.flex.min-h-\\[46px\\].justify-start div.touch\\:-me-2.touch\\:-ms-3\\.5.-ms-2\\.5.-me-1.flex.flex-wrap.items-center.gap-y-4.p-1.select-none'
         );
