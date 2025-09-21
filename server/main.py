@@ -4,6 +4,8 @@ from typing import Optional, Any
 
 from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, HttpUrl
 
 from . import database
@@ -19,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
+
+# Mount static files (for the database viewer GUI)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Get API key from environment variable
 API_KEY = os.getenv("API_KEY")
@@ -109,6 +114,18 @@ async def startup() -> None:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/")
+def root():
+    """Serve the database viewer GUI."""
+    return FileResponse("static/database_viewer.html")
+
+
+@app.get("/database-viewer")
+def database_viewer():
+    """Alternative route for the database viewer GUI."""
+    return FileResponse("static/database_viewer.html")
 
 
 @app.get("/admin/database/requests", response_model=DatabaseRequestsResponse)

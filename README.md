@@ -62,6 +62,7 @@ uvicorn server.main:app --host 0.0.0.0 --port 8000
 All endpoints require API key authentication via the `X-API-Key` header.
 
 - `GET /health` -> Health check (no auth required)
+- `GET /` or `GET /database-viewer` -> Web GUI database viewer (no auth required)
 - `POST /requests` `{ "prompt": "...", "prompt_mode": "search|study" }` -> `201` with request id
 - `GET /requests/{id}?delete_after_fetch=true` -> returns status and optionally deletes after fetch
 - `POST /requests/{id}/fetch-and-delete` -> returns response and immediately deletes from database
@@ -197,6 +198,25 @@ SELECT * FROM requests WHERE status = 'completed';
 ```
 
 See [DATABASE_VIEWING_GUIDE.md](DATABASE_VIEWING_GUIDE.md) for comprehensive database viewing options.
+
+### Web GUI Database Viewer
+
+Access the built-in web interface for easy database monitoring:
+
+```bash
+# Open in browser
+https://your-api.com/
+# or
+https://your-api.com/database-viewer
+```
+
+**Features:**
+- 📊 Real-time database statistics
+- 📋 Interactive table view with filtering
+- 🔍 Detailed record inspection
+- ⏰ Auto-refresh capability
+- 📱 Mobile-responsive design
+- 🔐 Secure API key configuration
 
 ## Running the Worker
 
