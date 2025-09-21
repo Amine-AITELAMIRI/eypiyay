@@ -1,5 +1,5 @@
 import os
-import psycopg2
+import psycopg
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Generator, Optional
@@ -56,8 +56,8 @@ def init_db() -> None:
 
 
 @contextmanager
-def get_connection() -> Generator[psycopg2.extensions.connection, None, None]:
-    conn = psycopg2.connect(DATABASE_URL)
+def get_connection() -> Generator[psycopg.Connection, None, None]:
+    conn = psycopg.connect(DATABASE_URL)
     try:
         yield conn
     finally:
