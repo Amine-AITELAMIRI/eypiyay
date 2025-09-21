@@ -5,6 +5,11 @@ javascript:(async () => {
       // For automated worker usage, reduce toast visibility and duration
       const isAutomated = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt");
       
+      // Log for debugging in automated mode
+      if (isAutomated) {
+        console.log(`[AUTOMATED] Toast: ${message} (${type})`);
+      }
+      
       const toast = document.createElement("div");
       toast.textContent = message;
       const colors = {
@@ -27,11 +32,11 @@ javascript:(async () => {
         fontFamily: "system-ui, sans-serif",
         maxWidth: "320px",
         wordWrap: "break-word",
-        opacity: isAutomated ? "0.7" : "1", // Make less visible for automated usage
+        opacity: isAutomated ? "0.8" : "1", // Slightly less visible for automated usage
       });
       document.body.appendChild(toast);
       // Shorter duration for automated usage
-      setTimeout(() => toast.remove(), isAutomated ? 2000 : 5000);
+      setTimeout(() => toast.remove(), isAutomated ? 3000 : 5000);
     };
   
     const API_ENDPOINT = "";
@@ -110,6 +115,14 @@ javascript:(async () => {
     const promptTextSource = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")
       ? window.__chatgptBookmarkletPrompt
       : prompt("Prompt to send to ChatGPT:");
+    
+    const isAutomated = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt");
+    
+    if (isAutomated) {
+      console.log(`[AUTOMATED] Prompt received: ${promptTextSource}`);
+      console.log(`[AUTOMATED] ChatGPT UI detected using selector: ${ready ? 'found' : 'not found'}`);
+    }
+    
     if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")) {
       delete window.__chatgptBookmarkletPrompt;
     }
@@ -118,6 +131,9 @@ javascript:(async () => {
         ? String(promptTextSource)
         : "";
     if (!promptText) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] No prompt text provided, exiting");
+      }
       return;
     }
   
@@ -149,10 +165,18 @@ javascript:(async () => {
   
     const composer = await waitForComposer();
     if (!composer) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: Could not locate the ChatGPT composer");
+        throw new Error("Could not locate the ChatGPT composer. Try refreshing the page.");
+      }
       alert(
         "Could not locate the ChatGPT composer. Try refreshing the page."
       );
       return;
+    }
+    
+    if (isAutomated) {
+      console.log("[AUTOMATED] Composer found, inserting prompt");
     }
   
     composer.focus();
@@ -198,12 +222,19 @@ javascript:(async () => {
     }
   
     if (!sendButton) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: No send button found");
+        throw new Error("Prompt inserted, but no send button was found. Press Enter manually.");
+      }
       alert(
         "Prompt inserted, but no send button was found. Press Enter manually."
       );
       return;
     }
-  
+
+    if (isAutomated) {
+      console.log("[AUTOMATED] Send button found, clicking");
+    }
     sendButton.click();
   
     showToast("Prompt sent! Waiting for response...", "info");
@@ -270,11 +301,19 @@ javascript:(async () => {
   
     const copyButton = await waitForResponseMarker();
     if (!copyButton) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: Timeout waiting for response");
+        throw new Error("Timeout waiting for response. Response may still be generating.");
+      }
       showToast(
         "Timeout waiting for response. Response may still be generating.",
         "warning"
       );
       return;
+    }
+    
+    if (isAutomated) {
+      console.log("[AUTOMATED] Response detected, waiting for text to load");
     }
   
     showToast("Response detected! Waiting for text to load...", "info");
@@ -310,8 +349,16 @@ javascript:(async () => {
   
     const responseText = await waitForResponseText();
     if (!responseText) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: Response text not found");
+        throw new Error("Response text not found after waiting");
+      }
       showToast("Response text not found after waiting", "warning");
       return;
+    }
+    
+    if (isAutomated) {
+      console.log(`[AUTOMATED] Response text found (${responseText.length} characters)`);
     }
   
     if (
@@ -344,6 +391,9 @@ javascript:(async () => {
       showToast(`Response saved as ${filename}`, "success");
       
       // Log completion for worker detection
+      if (isAutomated) {
+        console.log(`[AUTOMATED] SUCCESS: Response saved as ${filename}`);
+      }
       console.log(`ChatGPT bookmarklet completed: ${filename}`);
     } else {
       showToast("No valid response text found", "warning");
