@@ -83,9 +83,27 @@ javascript:(async () => {
       }
     };
   
-    const ready = document.querySelector('main[id="main"]');
+    // More flexible ChatGPT UI detection - try multiple selectors
+    const chatgptSelectors = [
+      'main[id="main"]',           // Original selector
+      'main',                      // Simple main element
+      '[data-testid="chat-page"]', // ChatGPT chat page
+      '.chat-container',           // Chat container
+      '#__next',                   // Next.js root
+      'body'                       // Fallback to body
+    ];
+    
+    let ready = null;
+    for (const selector of chatgptSelectors) {
+      ready = document.querySelector(selector);
+      if (ready) {
+        console.log(`ChatGPT UI detected using selector: ${selector}`);
+        break;
+      }
+    }
+    
     if (!ready) {
-      alert("ChatGPT UI not detected on this page.");
+      alert("ChatGPT UI not detected on this page. Please ensure you're on the ChatGPT website (chatgpt.com) and try again.");
       return;
     }
   
