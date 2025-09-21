@@ -300,7 +300,7 @@ javascript:(async () => {
     await sleep(1000);
   
     const waitForResponseMarker = async () => {
-      for (let i = 0; i < 120; i += 1) {
+      while (true) {
         // Check for the stop button (square icon) - indicates still processing
         const stopButton = document.querySelector('button[data-testid="stop-button"]');
         
@@ -322,21 +322,9 @@ javascript:(async () => {
         
         await sleep(250);
       }
-      return null;
     };
   
     const copyButton = await waitForResponseMarker();
-    if (!copyButton) {
-      if (isAutomated) {
-        console.log("[AUTOMATED] ERROR: Timeout waiting for response");
-        throw new Error("Timeout waiting for response. Response may still be generating.");
-      }
-      showToast(
-        "Timeout waiting for response. Response may still be generating.",
-        "warning"
-      );
-      return;
-    }
     
     if (isAutomated) {
       console.log("[AUTOMATED] Response detected, waiting for text to load");
@@ -371,7 +359,7 @@ javascript:(async () => {
     };
 
     const waitForResponseText = async () => {
-      for (let i = 0; i < 20; i += 1) {
+      for (let i = 0; i < 200; i += 1) {
         // Try multiple selectors for response text
         const selectors = [
           ".markdown.prose",
