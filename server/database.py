@@ -21,6 +21,10 @@ class RequestRecord:
 
 
 def _row_to_record(row: tuple) -> RequestRecord:
+    # Convert datetime objects to ISO format strings
+    created_at = row[6].isoformat() if hasattr(row[6], 'isoformat') else str(row[6])
+    updated_at = row[7].isoformat() if hasattr(row[7], 'isoformat') else str(row[7])
+    
     return RequestRecord(
         id=row[0],
         prompt=row[1],
@@ -28,8 +32,8 @@ def _row_to_record(row: tuple) -> RequestRecord:
         response=row[3],
         error=row[4],
         worker_id=row[5],
-        created_at=row[6],
-        updated_at=row[7],
+        created_at=created_at,
+        updated_at=updated_at,
     )
 
 
