@@ -1,5 +1,6 @@
 import os
 import psycopg
+import psycopg.errors
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Generator, Optional
@@ -44,6 +45,7 @@ def _row_to_record(row: tuple) -> RequestRecord:
 def init_db() -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # Create table if it doesn't exist
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS requests (
@@ -53,13 +55,23 @@ def init_db() -> None:
                     response TEXT,
                     error TEXT,
                     worker_id TEXT,
-                    webhook_url TEXT,
-                    webhook_delivered BOOLEAN NOT NULL DEFAULT FALSE,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
                 """
             )
+            
+            # Add webhook columns if they don't exist (migration)
+            try:
+                cur.execute("ALTER TABLE requests ADD COLUMN webhook_url TEXT")
+            except psycopg.errors.DuplicateColumn:
+                pass  # Column already exists
+            
+            try:
+                cur.execute("ALTER TABLE requests ADD COLUMN webhook_delivered BOOLEAN NOT NULL DEFAULT FALSE")
+            except psycopg.errors.DuplicateColumn:
+                pass  # Column already exists
+            
             conn.commit()
 
 
