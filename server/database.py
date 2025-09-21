@@ -6,8 +6,6 @@ from typing import Any, Dict, Generator, Optional
 
 # Get database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
 
 
 @dataclass
@@ -57,6 +55,8 @@ def init_db() -> None:
 
 @contextmanager
 def get_connection() -> Generator[psycopg.Connection, None, None]:
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is required")
     conn = psycopg.connect(DATABASE_URL)
     try:
         yield conn

@@ -50,7 +50,11 @@ class FailurePayload(BaseModel):
 
 @app.on_event("startup")
 def startup() -> None:
-    database.init_db()
+    try:
+        database.init_db()
+    except ValueError as e:
+        # Database not available yet, will retry on first request
+        print(f"Database initialization deferred: {e}")
 
 
 @app.get("/health")
