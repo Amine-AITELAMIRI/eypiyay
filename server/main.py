@@ -1,6 +1,6 @@
 import os
 import asyncio
-from typing import Optional
+from typing import Optional, Any
 
 from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,6 +68,20 @@ class FailurePayload(BaseModel):
     error: str
 
 
+class DatabaseStatsResponse(BaseModel):
+    status: str
+    total_requests: int
+    status_breakdown: dict[str, int]
+    oldest_request: Optional[str]
+    newest_request: Optional[str]
+
+
+class DatabaseRequestsResponse(BaseModel):
+    status: str
+    count: int
+    records: list[dict[str, Any]]
+
+
 async def periodic_cleanup():
     """Background task to periodically clean up old requests."""
     while True:
@@ -97,12 +111,12 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/admin/database/requests")
+@app.get("/admin/database/requests", response_model=DatabaseRequestsResponse)
 def view_requests(
     limit: int = Query(10, description="Number of records to return"),
     status: Optional[str] = Query(None, description="Filter by status"),
     api_key: str = Depends(verify_api_key)
-) -> dict[str, list]:
+) -> DatabaseRequestsResponse:
     """
     View database requests (development/admin use only).
     Use with caution in production environments.
@@ -137,17 +151,17 @@ def view_requests(
                             record[key] = value.isoformat()
                     records.append(record)
                 
-                return {
-                    "status": "success",
-                    "count": len(records),
-                    "records": records
-                }
+                return DatabaseRequestsResponse(
+                    status="success",
+                    count=len(records),
+                    records=records
+                )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
 
-@app.get("/admin/database/stats")
-def database_stats(api_key: str = Depends(verify_api_key)) -> dict[str, any]:
+@app.get("/admin/database/stats", response_model=DatabaseStatsResponse)
+def database_stats(api_key: str = Depends(verify_api_key)) -> DatabaseStatsResponse:
     """
     Get database statistics (development/admin use only).
     """
@@ -175,13 +189,13 @@ def database_stats(api_key: str = Depends(verify_api_key)) -> dict[str, any]:
                 """)
                 oldest, newest = cur.fetchone()
                 
-                return {
-                    "status": "success",
-                    "total_requests": total_count,
-                    "status_breakdown": status_counts,
-                    "oldest_request": oldest.isoformat() if oldest else None,
-                    "newest_request": newest.isoformat() if newest else None
-                }
+                return DatabaseStatsResponse(
+                    status="success",
+                    total_requests=total_count,
+                    status_breakdown=status_counts,
+                    oldest_request=oldest.isoformat() if oldest else None,
+                    newest_request=newest.isoformat() if newest else None
+                )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
