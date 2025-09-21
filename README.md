@@ -216,7 +216,7 @@ https://your-api.com/database-viewer
 - 🔍 Detailed record inspection
 - ⏰ Auto-refresh capability
 - 📱 Mobile-responsive design
-- 🔐 Secure API key configuration
+- ⚡ Pre-configured API settings (ready to use)
 
 ## Running the Worker
 

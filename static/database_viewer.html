@@ -83,6 +83,12 @@
             border-color: #4facfe;
         }
 
+        .form-group input[readonly] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
         .btn {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
@@ -319,14 +325,16 @@
             <div class="config-grid">
                 <div class="form-group">
                     <label for="apiUrl">API Base URL</label>
-                    <input type="text" id="apiUrl" placeholder="https://your-api.com" value="">
+                    <input type="text" id="apiUrl" value="https://chatgpt-relay-api.onrender.com" readonly>
                 </div>
                 <div class="form-group">
                     <label for="apiKey">API Key</label>
-                    <input type="password" id="apiKey" placeholder="Your API key">
+                    <input type="password" id="apiKey" value="f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8" readonly>
                 </div>
             </div>
-            <button class="btn" onclick="saveConfig()">💾 Save Configuration</button>
+            <div class="success" style="margin-top: 15px;">
+                ✅ Configuration is pre-configured and ready to use!
+            </div>
         </div>
 
         <div class="stats-section">
@@ -375,25 +383,7 @@
         let autoRefreshInterval = null;
         let autoRefreshEnabled = false;
 
-        // Load saved configuration
-        function loadConfig() {
-            const apiUrl = localStorage.getItem('chatgpt_api_url') || '';
-            const apiKey = localStorage.getItem('chatgpt_api_key') || '';
-            
-            document.getElementById('apiUrl').value = apiUrl;
-            document.getElementById('apiKey').value = apiKey;
-        }
-
-        // Save configuration
-        function saveConfig() {
-            const apiUrl = document.getElementById('apiUrl').value;
-            const apiKey = document.getElementById('apiKey').value;
-            
-            localStorage.setItem('chatgpt_api_url', apiUrl);
-            localStorage.setItem('chatgpt_api_key', apiKey);
-            
-            showMessage('Configuration saved successfully!', 'success');
-        }
+        // Configuration is now hardcoded - no need for load/save functions
 
         // Show messages
         function showMessage(message, type = 'info') {
@@ -411,17 +401,12 @@
             }, 3000);
         }
 
-        // Get API configuration
+        // Get API configuration (hardcoded)
         function getApiConfig() {
-            const apiUrl = document.getElementById('apiUrl').value || localStorage.getItem('chatgpt_api_url');
-            const apiKey = document.getElementById('apiKey').value || localStorage.getItem('chatgpt_api_key');
-            
-            if (!apiUrl || !apiKey) {
-                showMessage('Please configure API URL and API Key first!', 'error');
-                return null;
-            }
-            
-            return { apiUrl: apiUrl.replace(/\/$/, ''), apiKey };
+            return { 
+                apiUrl: 'https://chatgpt-relay-api.onrender.com', 
+                apiKey: 'f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8' 
+            };
         }
 
         // Load database statistics
@@ -647,10 +632,8 @@
             }
         }
 
-        // Load configuration on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadConfig();
-        });
+        // Configuration is hardcoded, no need to load on page load
     </script>
 </body>
 </html>
+

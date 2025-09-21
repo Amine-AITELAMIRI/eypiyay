@@ -232,6 +232,10 @@ javascript:(async () => {
       // Wait for the mode to be activated
       await sleep(500);
     }
+
+    // Prepend markdown formatting instruction to make responses easier to parse for API clients
+    const markdownInstruction = "give me the answer in a markdown format script (only give the answer in the script md)\n\n";
+    const finalPromptText = markdownInstruction + promptText;
   
     try {
       const range = document.createRange();
@@ -240,12 +244,12 @@ javascript:(async () => {
       const selection = window.getSelection();
       selection.removeAllRanges();
       selection.addRange(range);
-      document.execCommand("insertText", false, promptText);
+      document.execCommand("insertText", false, finalPromptText);
     } catch (error) {
       composer.innerHTML = "";
-      composer.textContent = promptText;
+      composer.textContent = finalPromptText;
       const inputEvent = new InputEvent("input", {
-        data: promptText,
+        data: finalPromptText,
         bubbles: true,
         composed: true,
       });
@@ -389,7 +393,7 @@ javascript:(async () => {
       !responseText.includes("const sleep=")
     ) {
       const responsePayload = {
-        prompt: promptText,
+        prompt: promptText, // Store original prompt without markdown instruction
         response: responseText,
         timestamp: new Date().toISOString(),
         url: window.location.href,
