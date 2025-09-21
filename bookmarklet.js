@@ -116,6 +116,10 @@ javascript:(async () => {
       ? window.__chatgptBookmarkletPrompt
       : prompt("Prompt to send to ChatGPT:");
     
+    const promptMode = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPromptMode")
+      ? window.__chatgptBookmarkletPromptMode
+      : null;
+    
     const isAutomated = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt");
     
     if (isAutomated) {
@@ -125,6 +129,9 @@ javascript:(async () => {
     
     if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")) {
       delete window.__chatgptBookmarkletPrompt;
+    }
+    if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPromptMode")) {
+      delete window.__chatgptBookmarkletPromptMode;
     }
     const promptText =
       promptTextSource !== null && promptTextSource !== undefined
@@ -180,6 +187,51 @@ javascript:(async () => {
     }
   
     composer.focus();
+  
+    // Handle special prompt modes
+    if (promptMode && (promptMode === "search" || promptMode === "study")) {
+      const modeCommand = promptMode === "search" ? "/sear" : "/stu";
+      
+      if (isAutomated) {
+        console.log(`[AUTOMATED] Applying prompt mode: ${promptMode} (typing: ${modeCommand})`);
+      }
+      
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(composer);
+        range.deleteContents();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand("insertText", false, modeCommand);
+      } catch (error) {
+        composer.innerHTML = "";
+        composer.textContent = modeCommand;
+        const inputEvent = new InputEvent("input", {
+          data: modeCommand,
+          bubbles: true,
+          composed: true,
+        });
+        composer.dispatchEvent(inputEvent);
+      }
+      
+      // Wait a moment for the mode command to be processed
+      await sleep(200);
+      
+      // Press Enter to activate the mode
+      const enterEvent = new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        composed: true,
+      });
+      composer.dispatchEvent(enterEvent);
+      
+      // Wait for the mode to be activated
+      await sleep(500);
+    }
   
     try {
       const range = document.createRange();

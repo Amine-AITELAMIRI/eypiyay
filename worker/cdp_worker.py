@@ -82,7 +82,7 @@ def wait_for_new_file(send, previous: List[str], timeout: float) -> Optional[str
     return None
 
 
-def run_prompt(ws_url: str, script: str, prompt: str, timeout: float, response_timeout: float) -> Dict[str, Any]:
+def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, response_timeout: float) -> Dict[str, Any]:
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
 
@@ -95,7 +95,13 @@ def run_prompt(ws_url: str, script: str, prompt: str, timeout: float, response_t
         send("Runtime.enable")
         saved_before = get_saved_files(send)
 
+        prompt = job["prompt"]
         send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPrompt = {json.dumps(prompt)};"})
+        
+        # Set prompt mode if available in the job
+        prompt_mode = job.get("prompt_mode")
+        if prompt_mode:
+            send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPromptMode = {json.dumps(prompt_mode)};"})
 
         send(
             "Runtime.evaluate",
@@ -207,7 +213,7 @@ def main() -> int:
         logger.info("Processing request %s", request_id)
 
         try:
-            result = run_prompt(ws_url, script, prompt, args.timeout, args.response_timeout)
+            result = run_prompt(ws_url, script, job, args.timeout, args.response_timeout)
         except Exception as exc:
             logger.error("Prompt %s failed: %s", request_id, exc)
             try:

@@ -19,6 +19,7 @@ class RequestRecord:
     worker_id: Optional[str]
     webhook_url: Optional[str]
     webhook_delivered: bool
+    prompt_mode: Optional[str]
     created_at: str
     updated_at: str
 
@@ -37,6 +38,7 @@ def _row_to_record(row: tuple) -> RequestRecord:
         worker_id=row[5],
         webhook_url=row[8],  # Added by migration at position 8
         webhook_delivered=row[9],  # Added by migration at position 9
+        prompt_mode=row[10],  # Added by migration at position 10
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -77,6 +79,14 @@ def init_db() -> None:
             except psycopg.errors.DuplicateColumn:
                 conn.rollback()  # Rollback the failed transaction
                 pass  # Column already exists
+            
+            # Add prompt_mode column if it doesn't exist (migration)
+            try:
+                cur.execute("ALTER TABLE requests ADD COLUMN prompt_mode TEXT")
+                conn.commit()
+            except psycopg.errors.DuplicateColumn:
+                conn.rollback()  # Rollback the failed transaction
+                pass  # Column already exists
 
 
 @contextmanager
@@ -90,12 +100,12 @@ def get_connection() -> Generator[psycopg.Connection, None, None]:
         conn.close()
 
 
-def create_request(prompt: str, webhook_url: Optional[str] = None) -> RequestRecord:
+def create_request(prompt: str, webhook_url: Optional[str] = None, prompt_mode: Optional[str] = None) -> RequestRecord:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO requests (prompt, status, webhook_url) VALUES (%s, 'pending', %s) RETURNING id",
-                (prompt, webhook_url),
+                "INSERT INTO requests (prompt, status, webhook_url, prompt_mode) VALUES (%s, 'pending', %s, %s) RETURNING id",
+                (prompt, webhook_url, prompt_mode),
             )
             request_id = cur.fetchone()[0]
             conn.commit()
@@ -171,6 +181,53 @@ def mark_webhook_delivered(request_id: int) -> None:
                 (request_id,),
             )
             conn.commit()
+
+
+def delete_request(request_id: int) -> bool:
+    """
+    Delete a request record from the database
+    
+    Args:
+        request_id: The ID of the request to delete
+        
+    Returns:
+        bool: True if the request was deleted, False if it wasn't found
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM requests WHERE id = %s",
+                (request_id,),
+            )
+            deleted_count = cur.rowcount
+            conn.commit()
+            return deleted_count > 0
+
+
+def cleanup_old_requests(retention_hours: int = 24) -> int:
+    """
+    Clean up completed requests older than the specified retention period.
+    This is useful for automatic maintenance to prevent database bloat.
+    
+    Args:
+        retention_hours: Number of hours to retain completed requests (default: 24)
+        
+    Returns:
+        int: Number of requests deleted
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM requests 
+                WHERE status IN ('completed', 'failed') 
+                AND updated_at < NOW() - INTERVAL '%s hours'
+                """,
+                (retention_hours,),
+            )
+            deleted_count = cur.rowcount
+            conn.commit()
+            return deleted_count
 
 
 def serialize(record: RequestRecord) -> Dict[str, Any]:

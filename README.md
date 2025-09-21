@@ -35,6 +35,7 @@ This repository contains a FastAPI relay server and a local Chrome/ChatGPT worke
    - Add the following environment variables:
      - `DATABASE_URL`: Will be automatically set by Render when you create the PostgreSQL database
      - `API_KEY`: Generate a secure random string (e.g., using `openssl rand -hex 32`)
+     - `RETENTION_HOURS`: Hours to retain completed requests (optional, default: 24)
 
 4. **Deploy:**
    - Render will automatically deploy your application
@@ -50,6 +51,7 @@ pip install -r requirements.txt
 # Set environment variables
 export DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
 export API_KEY="your-secure-api-key"
+export RETENTION_HOURS="24"  # Optional: hours to retain completed requests
 
 # Run the server
 uvicorn server.main:app --host 0.0.0.0 --port 8000
@@ -60,12 +62,108 @@ uvicorn server.main:app --host 0.0.0.0 --port 8000
 All endpoints require API key authentication via the `X-API-Key` header.
 
 - `GET /health` -> Health check (no auth required)
-- `POST /requests` `{ "prompt": "..." }` -> `201` with request id
-- `GET /requests/{id}` -> returns status (`pending | processing | completed | failed`)
+- `POST /requests` `{ "prompt": "...", "prompt_mode": "search|study" }` -> `201` with request id
+- `GET /requests/{id}?delete_after_fetch=true` -> returns status and optionally deletes after fetch
+- `POST /requests/{id}/fetch-and-delete` -> returns response and immediately deletes from database
+- `POST /admin/cleanup?retention_hours=24` -> manually trigger cleanup of old requests
 - Worker-only endpoints:
   - `POST /worker/claim` `{ "worker_id": "worker-1" }`
   - `POST /worker/{id}/complete` `{ "response": "..." }`
   - `POST /worker/{id}/fail` `{ "error": "..." }`
+
+#### Special Prompt Modes
+
+The API supports special prompt modes that activate ChatGPT's built-in commands:
+
+- **`"search"`** - Types `/sear` and presses Enter before the user prompt to activate search mode
+- **`"study"`** - Types `/stu` and presses Enter before the user prompt to activate study mode
+- **`null` or omitted** - No special mode is applied (default behavior)
+
+Example requests:
+
+```json
+// Normal prompt
+{
+  "prompt": "What is the capital of France?"
+}
+
+// Search mode prompt  
+{
+  "prompt": "Find information about Python programming",
+  "prompt_mode": "search"
+}
+
+// Study mode prompt
+{
+  "prompt": "Explain machine learning concepts", 
+  "prompt_mode": "study"
+}
+```
+
+#### Database Cleanup
+
+The API provides automatic database cleanup to manage storage efficiently:
+
+**Option 1: Query Parameter**
+```bash
+# Fetch and delete in one request
+GET /requests/{id}?delete_after_fetch=true
+```
+
+**Option 2: Dedicated Endpoint**
+```bash
+# Fetch and delete using dedicated endpoint
+POST /requests/{id}/fetch-and-delete
+```
+
+**Benefits:**
+- Automatic storage management - responses are deleted after being fetched
+- Prevents database bloat from accumulated responses
+- One-time use pattern - each response can only be fetched once
+- Atomic operation - fetch and delete happen in a single transaction
+
+**Usage Examples:**
+```bash
+# Create a request
+curl -X POST "https://your-api.com/requests" \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello world", "prompt_mode": "search"}'
+
+# Fetch response and delete immediately
+curl -X POST "https://your-api.com/requests/123/fetch-and-delete" \
+  -H "X-API-Key: your-key"
+
+# Or fetch with delete-after-fetch parameter
+curl "https://your-api.com/requests/123?delete_after_fetch=true" \
+  -H "X-API-Key: your-key"
+```
+
+#### Automatic Cleanup
+
+The server includes automatic cleanup features to maintain database health:
+
+**Automatic Background Cleanup:**
+- Runs every hour to remove completed/failed requests older than the retention period
+- Configurable via `RETENTION_HOURS` environment variable (default: 24 hours)
+- Only removes requests that are in `completed` or `failed` status
+
+**Manual Cleanup:**
+```bash
+# Trigger manual cleanup
+curl -X POST "https://your-api.com/admin/cleanup" \
+  -H "X-API-Key: your-key"
+
+# Cleanup with custom retention period
+curl -X POST "https://your-api.com/admin/cleanup?retention_hours=12" \
+  -H "X-API-Key: your-key"
+```
+
+**Environment Variables:**
+```bash
+# Set retention period (default: 24 hours)
+export RETENTION_HOURS=48  # Keep requests for 48 hours
+```
 
 ## Running the Worker
 
