@@ -348,16 +348,18 @@ javascript:(async () => {
     const cleanResponseText = (text) => {
       // Remove common UI artifacts that appear in ChatGPT responses
       const artifacts = [
-        /^markdownCopy code\s*/gi,
-        /^Copy code\s*/gi,
-        /^markdown\s*/gi,
-        /^Copy\s*/gi,
-        /^code\s*/gi,
-        /\s*Copy code\s*$/gi,
-        /\s*markdownCopy code\s*$/gi,
-        /\s*Copy\s*$/gi,
-        /\s*markdown\s*$/gi,
-        /\s*code\s*$/gi
+        /^mdCopy code\s*/gi,           // Handle "mdCopy code" at start
+        /^markdownCopy code\s*/gi,     // Handle "markdownCopy code" at start
+        /^Copy code\s*/gi,             // Handle "Copy code" at start
+        /^markdown\s*/gi,              // Handle "markdown" at start
+        /^Copy\s*/gi,                  // Handle "Copy" at start
+        /^code\s*/gi,                  // Handle "code" at start
+        /\s*mdCopy code\s*$/gi,        // Handle "mdCopy code" at end
+        /\s*Copy code\s*$/gi,          // Handle "Copy code" at end
+        /\s*markdownCopy code\s*$/gi,  // Handle "markdownCopy code" at end
+        /\s*Copy\s*$/gi,               // Handle "Copy" at end
+        /\s*markdown\s*$/gi,           // Handle "markdown" at end
+        /\s*code\s*$/gi                // Handle "code" at end
       ];
       
       let cleanedText = text;
