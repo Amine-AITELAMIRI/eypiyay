@@ -238,6 +238,9 @@ javascript:(async () => {
     sendButton.click();
   
     showToast("Prompt sent! Waiting for response...", "info");
+    
+    // Add a delay before starting to monitor the submit button
+    await sleep(1000);
   
     const waitForResponseMarker = async () => {
       for (let i = 0; i < 120; i += 1) {
@@ -263,59 +266,6 @@ javascript:(async () => {
             await sleep(250);
             continue;
           }
-        }
-        
-        // Fallback: Look for the complete action buttons container - this indicates response is fully finished
-        const actionButtonsContainer = document.querySelector(
-          'div.flex.min-h-\\[46px\\].justify-start div.touch\\:-me-2.touch\\:-ms-3\\.5.-ms-2\\.5.-me-1.flex.flex-wrap.items-center.gap-y-4.p-1.select-none'
-        );
-        
-        // Also check for the action buttons container with a more flexible selector
-        const flexibleContainer = document.querySelector(
-          'div[class*="flex"][class*="min-h-"] div[class*="flex"][class*="items-center"][class*="gap-y-4"]'
-        );
-        
-        // Check for all the expected action buttons within the container
-        const copyButton = document.querySelector(
-          'button[data-testid="copy-turn-action-button"]'
-        );
-        const goodResponseButton = document.querySelector(
-          'button[data-testid="good-response-turn-action-button"]'
-        );
-        const badResponseButton = document.querySelector(
-          'button[data-testid="bad-response-turn-action-button"]'
-        );
-        const shareButton = document.querySelector(
-          'button[aria-label="Share"]'
-        );
-        const moreActionsButton = document.querySelector(
-          'button[aria-label="More actions"]'
-        );
-        
-        // Check if we have the complete set of action buttons
-        const hasCompleteActionSet = copyButton && goodResponseButton && badResponseButton && shareButton && moreActionsButton;
-        
-        // Also check for stop button to ensure generation has stopped
-        const stopButton = document.querySelector(
-          'button[data-testid="stop-generating-button"]'
-        );
-        
-        // Response is complete if we have the action buttons container and all expected buttons, and no stop button
-        if ((actionButtonsContainer || flexibleContainer) && hasCompleteActionSet && !stopButton) {
-          return actionButtonsContainer || flexibleContainer || copyButton;
-        }
-        
-        // Fallback: Check for regenerate button as an indicator (older detection method)
-        const regenerateButton = document.querySelector(
-          'button[data-testid="regenerate-response-button"]'
-        );
-        if (regenerateButton && !stopButton) {
-          return regenerateButton;
-        }
-        
-        // Additional fallback: Just copy button without stop button
-        if (copyButton && !stopButton) {
-          return copyButton;
         }
         
         await sleep(250);
