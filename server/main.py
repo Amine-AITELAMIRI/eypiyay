@@ -3,12 +3,22 @@ import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
 
 from . import database
 from . import webhook
 
 app = FastAPI(title="ChatGPT Relay Server", version="0.1.0")
+
+# Add CORS middleware to allow cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Get API key from environment variable
 API_KEY = os.getenv("API_KEY")
