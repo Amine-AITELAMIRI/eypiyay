@@ -177,7 +177,20 @@ javascript:(async () => {
   
     const waitForResponseMarker = async () => {
       for (let i = 0; i < 120; i += 1) {
-        // Look for the complete action buttons container - this indicates response is fully finished
+        // Primary detection: Check if send button has changed from "Stop streaming" to "Start voice mode"
+        const stopButton = document.querySelector(
+          'button[data-testid="stop-button"]'
+        );
+        const voiceButton = document.querySelector(
+          'button[data-testid="composer-speech-button"]'
+        );
+        
+        // Response is complete when stop button is gone and voice button is present
+        if (!stopButton && voiceButton) {
+          return voiceButton;
+        }
+        
+        // Secondary detection: Look for the complete action buttons container
         const actionButtonsContainer = document.querySelector(
           'div.flex.min-h-\\[46px\\].justify-start div.touch\\:-me-2.touch\\:-ms-3\\.5.-ms-2\\.5.-me-1.flex.flex-wrap.items-center.gap-y-4.p-1.select-none'
         );
@@ -207,13 +220,13 @@ javascript:(async () => {
         // Check if we have the complete set of action buttons
         const hasCompleteActionSet = copyButton && goodResponseButton && badResponseButton && shareButton && moreActionsButton;
         
-        // Also check for stop button to ensure generation has stopped
-        const stopButton = document.querySelector(
+        // Also check for stop generating button to ensure generation has stopped
+        const stopGeneratingButton = document.querySelector(
           'button[data-testid="stop-generating-button"]'
         );
         
-        // Response is complete if we have the action buttons container and all expected buttons, and no stop button
-        if ((actionButtonsContainer || flexibleContainer) && hasCompleteActionSet && !stopButton) {
+        // Response is complete if we have the action buttons container and all expected buttons, and no stop generating button
+        if ((actionButtonsContainer || flexibleContainer) && hasCompleteActionSet && !stopGeneratingButton) {
           return actionButtonsContainer || flexibleContainer || copyButton;
         }
         
@@ -221,12 +234,12 @@ javascript:(async () => {
         const regenerateButton = document.querySelector(
           'button[data-testid="regenerate-response-button"]'
         );
-        if (regenerateButton && !stopButton) {
+        if (regenerateButton && !stopGeneratingButton) {
           return regenerateButton;
         }
         
-        // Additional fallback: Just copy button without stop button
-        if (copyButton && !stopButton) {
+        // Additional fallback: Just copy button without stop generating button
+        if (copyButton && !stopGeneratingButton) {
           return copyButton;
         }
         
@@ -244,7 +257,7 @@ javascript:(async () => {
       return;
     }
   
-    showToast("Response detected! Waiting for text to load...", "info");
+    showToast("Response complete! Waiting for text to load...", "info");
     await sleep(2000);
   
     const waitForResponseText = async () => {
