@@ -1,5 +1,4 @@
 javascript:(async () => {
-    console.log("🚀 ChatGPT Bookmarklet starting...");
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   
     const showToast = (message, type = "success") => {
@@ -84,34 +83,9 @@ javascript:(async () => {
       }
     };
   
-    // Try multiple selectors to detect ChatGPT UI
-    const chatgptSelectors = [
-      'main[id="main"]',
-      'main',
-      '[data-testid="conversation-turn-1"]',
-      '[data-testid="conversation-turn-2"]',
-      '.conversation',
-      'div[role="main"]',
-      '#__next',
-      'body'
-    ];
-    
-    let ready = null;
-    for (const selector of chatgptSelectors) {
-      ready = document.querySelector(selector);
-      if (ready) {
-        console.log(`✅ ChatGPT UI detected using selector: ${selector}`);
-        break;
-      }
-    }
-    
+    const ready = document.querySelector('main[id="main"]');
     if (!ready) {
-      console.log("❌ ChatGPT UI not detected. Available selectors:");
-      chatgptSelectors.forEach(selector => {
-        const element = document.querySelector(selector);
-        console.log(`  ${selector}: ${element ? "Found" : "Not found"}`);
-      });
-      alert("ChatGPT UI not detected on this page. Check console for details.");
+      alert("ChatGPT UI not detected on this page.");
       return;
     }
   
@@ -132,39 +106,15 @@ javascript:(async () => {
     showToast("Sending prompt to ChatGPT...", "info");
   
     const waitForComposer = async () => {
-      console.log("🔍 Looking for ChatGPT composer...");
-      
-      const composerSelectors = [
-        'div[contenteditable="true"].ProseMirror',
-        'div[contenteditable="true"]',
-        'textarea[placeholder*="Ask"]',
-        'textarea[placeholder*="Message"]',
-        'input[type="text"]',
-        '.composer-input',
-        '[data-testid="composer-input"]'
-      ];
-      
       for (let i = 0; i < 40; i += 1) {
-        // Debug every 10 iterations
-        if (i % 10 === 0) {
-          console.log(`🔍 Composer detection attempt ${i}:`);
-          composerSelectors.forEach(selector => {
-            const element = document.querySelector(selector);
-            console.log(`  ${selector}: ${element ? "Found" : "Not found"}`);
-          });
-        }
-        
-        for (const selector of composerSelectors) {
-          const node = document.querySelector(selector);
-          if (node) {
-            console.log(`✅ Composer found using selector: ${selector}`);
-            return node;
-          }
+        const node = document.querySelector(
+          'div[contenteditable="true"].ProseMirror'
+        );
+        if (node) {
+          return node;
         }
         await sleep(250);
       }
-      
-      console.log("❌ Composer not found after 40 attempts");
       return null;
     };
   
@@ -226,45 +176,62 @@ javascript:(async () => {
     showToast("Prompt sent! Waiting for response...", "info");
   
     const waitForResponseMarker = async () => {
-      console.log("🔍 Starting response detection...");
-      
       for (let i = 0; i < 120; i += 1) {
-        // Primary detection: Check if send button has changed from "Stop streaming" to "Start voice mode"
-        const stopButton = document.querySelector(
-          'button[data-testid="stop-button"]'
-        );
-        const voiceButton = document.querySelector(
-          'button[data-testid="composer-speech-button"]'
+        // Look for the complete action buttons container - this indicates response is fully finished
+        const actionButtonsContainer = document.querySelector(
+          'div.flex.min-h-\\[46px\\].justify-start div.touch\\:-me-2.touch\\:-ms-3\\.5.-ms-2\\.5.-me-1.flex.flex-wrap.items-center.gap-y-4.p-1.select-none'
         );
         
-        // Debug logging every 10 iterations (every 2.5 seconds)
-        if (i % 10 === 0) {
-          console.log(`🔍 Detection attempt ${i}:`, {
-            stopButton: stopButton ? "✅ Found" : "❌ Not found",
-            voiceButton: voiceButton ? "✅ Found" : "❌ Not found",
-            stopButtonDetails: stopButton ? {
-              id: stopButton.id,
-              ariaLabel: stopButton.getAttribute('aria-label'),
-              testId: stopButton.getAttribute('data-testid')
-            } : null,
-            voiceButtonDetails: voiceButton ? {
-              id: voiceButton.id,
-              ariaLabel: voiceButton.getAttribute('aria-label'),
-              testId: voiceButton.getAttribute('data-testid')
-            } : null
-          });
+        // Also check for the action buttons container with a more flexible selector
+        const flexibleContainer = document.querySelector(
+          'div[class*="flex"][class*="min-h-"] div[class*="flex"][class*="items-center"][class*="gap-y-4"]'
+        );
+        
+        // Check for all the expected action buttons within the container
+        const copyButton = document.querySelector(
+          'button[data-testid="copy-turn-action-button"]'
+        );
+        const goodResponseButton = document.querySelector(
+          'button[data-testid="good-response-turn-action-button"]'
+        );
+        const badResponseButton = document.querySelector(
+          'button[data-testid="bad-response-turn-action-button"]'
+        );
+        const shareButton = document.querySelector(
+          'button[aria-label="Share"]'
+        );
+        const moreActionsButton = document.querySelector(
+          'button[aria-label="More actions"]'
+        );
+        
+        // Check if we have the complete set of action buttons
+        const hasCompleteActionSet = copyButton && goodResponseButton && badResponseButton && shareButton && moreActionsButton;
+        
+        // Also check for stop button to ensure generation has stopped
+        const stopButton = document.querySelector(
+          'button[data-testid="stop-generating-button"]'
+        );
+        
+        // Response is complete if we have the action buttons container and all expected buttons, and no stop button
+        if ((actionButtonsContainer || flexibleContainer) && hasCompleteActionSet && !stopButton) {
+          return actionButtonsContainer || flexibleContainer || copyButton;
         }
         
-        // Response is complete when stop button is gone and voice button is present
-        if (!stopButton && voiceButton) {
-          console.log("✅ Response complete detected! Stop button gone, voice button present");
-          return voiceButton;
+        // Fallback: Check for regenerate button as an indicator (older detection method)
+        const regenerateButton = document.querySelector(
+          'button[data-testid="regenerate-response-button"]'
+        );
+        if (regenerateButton && !stopButton) {
+          return regenerateButton;
+        }
+        
+        // Additional fallback: Just copy button without stop button
+        if (copyButton && !stopButton) {
+          return copyButton;
         }
         
         await sleep(250);
       }
-      
-      console.log("❌ Timeout: Could not detect response completion");
       return null;
     };
   
@@ -277,12 +244,10 @@ javascript:(async () => {
       return;
     }
   
-    showToast("Response complete! Waiting for text to load...", "info");
+    showToast("Response detected! Waiting for text to load...", "info");
     await sleep(2000);
   
     const waitForResponseText = async () => {
-      console.log("📝 Starting response text detection...");
-      
       for (let i = 0; i < 20; i += 1) {
         // Try multiple selectors for response text
         const selectors = [
@@ -293,20 +258,6 @@ javascript:(async () => {
           ".markdown"
         ];
         
-        // Debug logging every 5 iterations (every 2.5 seconds)
-        if (i % 5 === 0) {
-          console.log(`📝 Text detection attempt ${i}:`);
-          selectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            console.log(`  ${selector}: ${elements.length} elements found`);
-            if (elements.length > 0) {
-              const lastElement = elements[elements.length - 1];
-              const text = lastElement.textContent.trim();
-              console.log(`    Last element text length: ${text.length}, preview: "${text.substring(0, 100)}..."`);
-            }
-          });
-        }
-        
         for (const selector of selectors) {
           const elements = document.querySelectorAll(selector);
           // Get the last (most recent) element
@@ -314,7 +265,6 @@ javascript:(async () => {
             const element = elements[j];
             const text = element.textContent.trim();
             if (text && text.length > 10) { // Ensure it's substantial content
-              console.log(`✅ Response text found using selector: ${selector}, length: ${text.length}`);
               return text;
             }
           }
@@ -322,8 +272,6 @@ javascript:(async () => {
         
         await sleep(500);
       }
-      
-      console.log("❌ Timeout: Could not find response text");
       return null;
     };
   
