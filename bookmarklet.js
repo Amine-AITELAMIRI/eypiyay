@@ -125,11 +125,22 @@ javascript:(async () => {
   
     const waitForComposer = async () => {
       for (let i = 0; i < 40; i += 1) {
-        const node = document.querySelector(
-          'div[contenteditable="true"].ProseMirror'
-        );
-        if (node) {
-          return node;
+        // Try multiple selectors for the current ChatGPT interface
+        const selectors = [
+          'div[contenteditable="true"].ProseMirror#prompt-textarea', // Current ChatGPT interface
+          'div[contenteditable="true"].ProseMirror',                 // Fallback to any ProseMirror
+          'textarea[name="prompt-textarea"]',                        // Fallback textarea
+          'div[contenteditable="true"]',                             // Any contenteditable div
+          'textarea[placeholder*="Ask"]',                            // Textarea with "Ask" placeholder
+          'textarea[data-virtualkeyboard="true"]'                    // Textarea with virtual keyboard
+        ];
+        
+        for (const selector of selectors) {
+          const node = document.querySelector(selector);
+          if (node) {
+            console.log(`Composer found using selector: ${selector}`);
+            return node;
+          }
         }
         await sleep(250);
       }
@@ -172,6 +183,10 @@ javascript:(async () => {
       'button[data-testid="send-button"]',
       'button[aria-label*="Send"]',
       'button[type="submit"]',
+      'button[class*="composer"]', // ChatGPT composer buttons
+      'button[class*="send"]',     // Any button with "send" in class
+      'form button:not([type="button"])', // Submit button in form
+      'button:not([type="button"])'       // Any button that's not explicitly type="button"
     ];
   
     let sendButton = null;
