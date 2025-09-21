@@ -1,4 +1,5 @@
 javascript:(async () => {
+    console.log("🚀 ChatGPT Bookmarklet starting...");
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   
     const showToast = (message, type = "success") => {
@@ -176,6 +177,8 @@ javascript:(async () => {
     showToast("Prompt sent! Waiting for response...", "info");
   
     const waitForResponseMarker = async () => {
+      console.log("🔍 Starting response detection...");
+      
       for (let i = 0; i < 120; i += 1) {
         // Primary detection: Check if send button has changed from "Stop streaming" to "Start voice mode"
         const stopButton = document.querySelector(
@@ -185,66 +188,34 @@ javascript:(async () => {
           'button[data-testid="composer-speech-button"]'
         );
         
+        // Debug logging every 10 iterations (every 2.5 seconds)
+        if (i % 10 === 0) {
+          console.log(`🔍 Detection attempt ${i}:`, {
+            stopButton: stopButton ? "✅ Found" : "❌ Not found",
+            voiceButton: voiceButton ? "✅ Found" : "❌ Not found",
+            stopButtonDetails: stopButton ? {
+              id: stopButton.id,
+              ariaLabel: stopButton.getAttribute('aria-label'),
+              testId: stopButton.getAttribute('data-testid')
+            } : null,
+            voiceButtonDetails: voiceButton ? {
+              id: voiceButton.id,
+              ariaLabel: voiceButton.getAttribute('aria-label'),
+              testId: voiceButton.getAttribute('data-testid')
+            } : null
+          });
+        }
+        
         // Response is complete when stop button is gone and voice button is present
         if (!stopButton && voiceButton) {
+          console.log("✅ Response complete detected! Stop button gone, voice button present");
           return voiceButton;
-        }
-        
-        // Secondary detection: Look for the complete action buttons container
-        const actionButtonsContainer = document.querySelector(
-          'div.flex.min-h-\\[46px\\].justify-start div.touch\\:-me-2.touch\\:-ms-3\\.5.-ms-2\\.5.-me-1.flex.flex-wrap.items-center.gap-y-4.p-1.select-none'
-        );
-        
-        // Also check for the action buttons container with a more flexible selector
-        const flexibleContainer = document.querySelector(
-          'div[class*="flex"][class*="min-h-"] div[class*="flex"][class*="items-center"][class*="gap-y-4"]'
-        );
-        
-        // Check for all the expected action buttons within the container
-        const copyButton = document.querySelector(
-          'button[data-testid="copy-turn-action-button"]'
-        );
-        const goodResponseButton = document.querySelector(
-          'button[data-testid="good-response-turn-action-button"]'
-        );
-        const badResponseButton = document.querySelector(
-          'button[data-testid="bad-response-turn-action-button"]'
-        );
-        const shareButton = document.querySelector(
-          'button[aria-label="Share"]'
-        );
-        const moreActionsButton = document.querySelector(
-          'button[aria-label="More actions"]'
-        );
-        
-        // Check if we have the complete set of action buttons
-        const hasCompleteActionSet = copyButton && goodResponseButton && badResponseButton && shareButton && moreActionsButton;
-        
-        // Also check for stop generating button to ensure generation has stopped
-        const stopGeneratingButton = document.querySelector(
-          'button[data-testid="stop-generating-button"]'
-        );
-        
-        // Response is complete if we have the action buttons container and all expected buttons, and no stop generating button
-        if ((actionButtonsContainer || flexibleContainer) && hasCompleteActionSet && !stopGeneratingButton) {
-          return actionButtonsContainer || flexibleContainer || copyButton;
-        }
-        
-        // Fallback: Check for regenerate button as an indicator (older detection method)
-        const regenerateButton = document.querySelector(
-          'button[data-testid="regenerate-response-button"]'
-        );
-        if (regenerateButton && !stopGeneratingButton) {
-          return regenerateButton;
-        }
-        
-        // Additional fallback: Just copy button without stop generating button
-        if (copyButton && !stopGeneratingButton) {
-          return copyButton;
         }
         
         await sleep(250);
       }
+      
+      console.log("❌ Timeout: Could not detect response completion");
       return null;
     };
   
@@ -261,6 +232,8 @@ javascript:(async () => {
     await sleep(2000);
   
     const waitForResponseText = async () => {
+      console.log("📝 Starting response text detection...");
+      
       for (let i = 0; i < 20; i += 1) {
         // Try multiple selectors for response text
         const selectors = [
@@ -271,6 +244,20 @@ javascript:(async () => {
           ".markdown"
         ];
         
+        // Debug logging every 5 iterations (every 2.5 seconds)
+        if (i % 5 === 0) {
+          console.log(`📝 Text detection attempt ${i}:`);
+          selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            console.log(`  ${selector}: ${elements.length} elements found`);
+            if (elements.length > 0) {
+              const lastElement = elements[elements.length - 1];
+              const text = lastElement.textContent.trim();
+              console.log(`    Last element text length: ${text.length}, preview: "${text.substring(0, 100)}..."`);
+            }
+          });
+        }
+        
         for (const selector of selectors) {
           const elements = document.querySelectorAll(selector);
           // Get the last (most recent) element
@@ -278,6 +265,7 @@ javascript:(async () => {
             const element = elements[j];
             const text = element.textContent.trim();
             if (text && text.length > 10) { // Ensure it's substantial content
+              console.log(`✅ Response text found using selector: ${selector}, length: ${text.length}`);
               return text;
             }
           }
@@ -285,6 +273,8 @@ javascript:(async () => {
         
         await sleep(500);
       }
+      
+      console.log("❌ Timeout: Could not find response text");
       return null;
     };
   
