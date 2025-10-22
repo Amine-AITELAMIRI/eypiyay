@@ -146,7 +146,20 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, ch
         model_mode = job.get("model_mode")
         if model_mode:
             modify_chatgpt_url(send, model_mode, chatgpt_url)
+            # Wait a bit longer for page to fully stabilize after reload
+            time.sleep(2)
 
+        # Convert image URL to base64 BEFORE setting window variables
+        # This ensures the page is fully loaded when we set the image
+        converted_image = None
+        image_url = job.get("image_url")
+        if image_url:
+            # Convert external URLs to base64 to avoid CSP violations in ChatGPT
+            converted_image = fetch_and_encode_image(image_url)
+            if not converted_image:
+                logger.warning(f"Failed to convert image, skipping image upload")
+
+        # Now set all window variables after page is stable
         prompt = job["prompt"]
         send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPrompt = {json.dumps(prompt)};"})
         
@@ -155,14 +168,10 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, ch
         if prompt_mode:
             send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPromptMode = {json.dumps(prompt_mode)};"})
         
-        # Set image URL if available in the job
-        # Convert to base64 data URI if it's a URL to avoid CSP issues
-        image_url = job.get("image_url")
-        if image_url:
-            # Convert external URLs to base64 to avoid CSP violations in ChatGPT
-            converted_image = fetch_and_encode_image(image_url)
-            if converted_image:
-                send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletImageUrl = {json.dumps(converted_image)};"})
+        # Set image URL if we successfully converted it
+        if converted_image:
+            send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletImageUrl = {json.dumps(converted_image)};"})
+            logger.info("Image URL set in window, bookmarklet will upload it")
 
         send(
             "Runtime.evaluate",
