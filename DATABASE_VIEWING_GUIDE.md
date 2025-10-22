@@ -1,6 +1,8 @@
 # Database Table Viewing Guide
 
-This guide shows you multiple ways to view the contents of your ChatGPT Relay database tables.
+This guide shows you multiple ways to view the contents of your ChatGPT Relay database tables (hosted on Supabase).
+
+> **Note**: This project now uses Supabase for database hosting. See [SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md) for setup instructions.
 
 ## 🔍 **Method 1: New API Endpoints (Easiest)**
 
@@ -47,20 +49,24 @@ curl "https://your-api.com/admin/database/stats" \
 }
 ```
 
-## 🗄️ **Method 2: Direct Database Access**
+## 🗄️ **Method 2: Supabase Dashboard (Recommended)**
+
+### **Using Supabase Studio**
+
+1. Go to [Supabase Dashboard](https://app.supabase.com/project/hizcmicfsbirljnfaogr)
+2. Navigate to **Table Editor** to view your `requests` table
+3. Use **SQL Editor** to run custom queries
+4. View **Database** → **Tables** for schema information
 
 ### **Using psql (PostgreSQL Command Line)**
 
 #### **Connect to Database**
 ```bash
-# Using connection string
-psql "postgresql://username:password@localhost:5432/database_name"
+# Using Supabase connection string
+psql "postgresql://postgres.hizcmicfsbirljnfaogr:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
 
-# Using environment variable
+# Or using environment variable
 psql $DATABASE_URL
-
-# For Render.com databases
-psql "postgresql://user:pass@host:port/dbname"
 ```
 
 #### **Basic Commands**
@@ -169,24 +175,33 @@ ORDER BY count DESC;
 2. Create PostgreSQL connection
 3. Browse `requests` table
 
-## 🌐 **Method 4: Render.com Database Access**
+## 🌐 **Method 4: Supabase Advanced Features**
 
-If you're using Render.com:
+Supabase provides additional tools beyond basic database access:
 
-### **Via Render Dashboard**
-1. Go to your Render dashboard
-2. Click on your PostgreSQL database
-3. Click "Connect" tab
-4. Use the connection details with any PostgreSQL client
+### **Database Performance Monitoring**
+1. Go to [Supabase Dashboard](https://app.supabase.com/project/hizcmicfsbirljnfaogr)
+2. Navigate to **Database** → **Query Performance**
+3. View slow queries and optimize them
 
-### **Via Render Shell**
-```bash
-# Access your Render service shell
-render service shell your-service-name
+### **Real-time Subscriptions** (Future Enhancement)
+```javascript
+// Optional: Add real-time updates to your application
+const { createClient } = require('@supabase/supabase-js')
+const supabase = createClient('https://hizcmicfsbirljnfaogr.supabase.co', 'ANON_KEY')
 
-# Connect to database
-psql $DATABASE_URL
+// Listen to database changes
+supabase
+  .from('requests')
+  .on('INSERT', payload => {
+    console.log('New request:', payload.new)
+  })
+  .subscribe()
 ```
+
+### **Database Backups**
+- Automatic daily backups included in Supabase free tier
+- Manual backups available in Settings → Database → Backups
 
 ## 📊 **Method 5: Create a Simple Web Interface**
 
@@ -285,8 +300,13 @@ You can create a simple HTML page to view your database:
 # Check if DATABASE_URL is set
 echo $DATABASE_URL
 
-# Test connection
+# Test connection to Supabase
 psql $DATABASE_URL -c "SELECT 1;"
+
+# If connection fails, verify:
+# 1. Your database password is correct
+# 2. The connection string format is correct
+# 3. SSL mode is enabled (Supabase requires SSL)
 ```
 
 **Q: Permission denied**
@@ -321,21 +341,34 @@ WHERE table_name = 'requests';
 Make sure these are set correctly:
 ```bash
 # Required
-export DATABASE_URL="postgresql://user:pass@host:port/db"
+export DATABASE_URL="postgresql://postgres.hizcmicfsbirljnfaogr:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
 export API_KEY="your-secure-api-key"
 
 # Optional
 export RETENTION_HOURS="24"
 ```
 
+**Note**: Replace `[YOUR-PASSWORD]` with your Supabase database password from the dashboard.
+
 ## 📈 **Monitoring Best Practices**
 
-1. **Regular Monitoring**: Check database stats regularly
+1. **Regular Monitoring**: Check database stats regularly using Supabase Dashboard
 2. **Cleanup Monitoring**: Watch cleanup logs for effectiveness
-3. **Performance**: Monitor query performance for large datasets
-4. **Storage**: Keep an eye on database size growth
-5. **Backup**: Ensure regular database backups are configured
+3. **Performance**: Use Supabase's Query Performance tool to monitor slow queries
+4. **Storage**: Monitor database size in Supabase Settings → Database → Usage
+5. **Backup**: Automatic daily backups are enabled by default in Supabase
+
+## 🔗 **Quick Links**
+
+- **Supabase Dashboard**: https://app.supabase.com/project/hizcmicfsbirljnfaogr
+- **Table Editor**: https://app.supabase.com/project/hizcmicfsbirljnfaogr/editor
+- **SQL Editor**: https://app.supabase.com/project/hizcmicfsbirljnfaogr/sql
+- **Database Settings**: https://app.supabase.com/project/hizcmicfsbirljnfaogr/settings/database
 
 ---
 
-**Choose the method that works best for your setup!** The new API endpoints are the easiest for quick checks, while direct database access gives you the most flexibility for complex queries.
+**Choose the method that works best for your setup!** 
+
+- ✨ **Easiest**: Supabase Dashboard (visual interface, no commands needed)
+- 🚀 **Quick Check**: API endpoints (curl commands)
+- 🔧 **Power User**: Direct psql access (full SQL control)

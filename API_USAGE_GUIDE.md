@@ -2,6 +2,8 @@
 
 This guide provides comprehensive documentation for using the ChatGPT Relay API, including all available fields, parameters, and best practices.
 
+> **Note**: This API now uses Supabase for database storage. See [SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md) for database setup and [setup_supabase.md](setup_supabase.md) for quick start instructions.
+
 ## 📋 Table of Contents
 
 - [Quick Reference](#quick-reference)

@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, Generator, Optional
 
 # Get database URL from environment variable
+# Supabase connection format:
+# postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 

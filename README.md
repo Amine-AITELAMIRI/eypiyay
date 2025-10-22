@@ -4,9 +4,9 @@ This repository contains a FastAPI relay server and a local Chrome/ChatGPT worke
 
 ## Components
 
-- `server/`: FastAPI application that accepts user prompts, tracks their status, and stores results in PostgreSQL.
+- `server/`: FastAPI application that accepts user prompts, tracks their status, and stores results in PostgreSQL (Supabase).
 - `worker/cdp_worker.py`: Long-running process that polls the server, drives the ChatGPT web UI through the existing bookmarklet (via CDP), and pushes responses back.
-- `render.yaml`: Render deployment configuration for hosting the API with managed PostgreSQL.
+- `render.yaml`: Render deployment configuration for hosting the API with Supabase PostgreSQL database.
 
 ## Prerequisites
 
@@ -19,27 +19,36 @@ This repository contains a FastAPI relay server and a local Chrome/ChatGPT worke
 
 ## Deployment
 
-### Deploy to Render
+### Deploy to Render (with Supabase Database)
 
-1. **Fork this repository** to your GitHub account.
+1. **Set up Supabase Database:**
+   - Go to [supabase.com](https://supabase.com) and create a project (or use existing)
+   - Get your database password from Settings → Database
+   - Your connection string format:
+     ```
+     postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+     ```
+   - See [SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md) for detailed setup
 
-2. **Connect to Render:**
+2. **Fork this repository** to your GitHub account.
+
+3. **Connect to Render:**
    - Go to [render.com](https://render.com) and sign up/login
    - Click "New +" → "Blueprint"
    - Connect your GitHub account and select this repository
    - Render will automatically detect the `render.yaml` configuration
 
-3. **Set Environment Variables:**
+4. **Set Environment Variables:**
    - In the Render dashboard, go to your web service
    - Navigate to "Environment" tab
    - Add the following environment variables:
-     - `DATABASE_URL`: Will be automatically set by Render when you create the PostgreSQL database
+     - `DATABASE_URL`: Your Supabase connection string (see step 1)
      - `API_KEY`: Generate a secure random string (e.g., using `openssl rand -hex 32`)
      - `RETENTION_HOURS`: Hours to retain completed requests (optional, default: 24)
 
-4. **Deploy:**
+5. **Deploy:**
    - Render will automatically deploy your application
-   - The PostgreSQL database will be created and connected automatically
+   - The database tables will be created automatically on first startup
    - Your API will be available at `https://your-app-name.onrender.com`
 
 ### Local Development
@@ -49,13 +58,15 @@ This repository contains a FastAPI relay server and a local Chrome/ChatGPT worke
 pip install -r requirements.txt
 
 # Set environment variables
-export DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+export DATABASE_URL="postgresql://postgres.hizcmicfsbirljnfaogr:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
 export API_KEY="your-secure-api-key"
 export RETENTION_HOURS="24"  # Optional: hours to retain completed requests
 
 # Run the server
 uvicorn server.main:app --host 0.0.0.0 --port 8000
 ```
+
+**Note**: Replace `[YOUR-PASSWORD]` with your actual Supabase database password. See [SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md) for details.
 
 ### API Overview
 
@@ -259,8 +270,10 @@ The worker claims pending prompts, injects them through your existing bookmarkle
 
 ### Environment Variables
 
-- `DATABASE_URL`: PostgreSQL connection string (automatically set by Render)
+- `DATABASE_URL`: Supabase PostgreSQL connection string (set manually in Render dashboard)
+  - Format: `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres`
 - `API_KEY`: Secure API key for authentication (set manually in Render dashboard)
+- `RETENTION_HOURS`: Hours to retain completed requests (optional, default: 24)
 
 ### Worker Configuration
 
@@ -277,7 +290,8 @@ The worker now requires an API key as the third argument. Make sure to use the s
 
 - The worker stores the ChatGPT response exactly as the bookmarklet saves it (JSON string with prompt/response/timestamp/url). Downstream consumers can parse it for richer data.
 - Failures (timeouts, CDP issues) are reported back via `/worker/{id}/fail` so clients can retry or inspect `error`.
-- The PostgreSQL database is automatically managed by Render and includes automatic backups.
+- The PostgreSQL database is hosted on Supabase with automatic backups and excellent monitoring tools.
 - The API is served over HTTPS when deployed to Render.
+- See [SUPABASE_MIGRATION_GUIDE.md](SUPABASE_MIGRATION_GUIDE.md) for database setup and migration instructions.
 
 
