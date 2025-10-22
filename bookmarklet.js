@@ -263,14 +263,59 @@ javascript:(async () => {
           }
         }
         
-        // Method 4: Create a new file input if none found
+        // Method 4: Try to trigger file upload via click simulation
         if (!fileInput) {
-          console.log('[IMAGE] No file input found, creating new one');
-          fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.accept = 'image/*';
-          fileInput.style.display = 'none';
-          document.body.appendChild(fileInput);
+          console.log('[IMAGE] No file input found, trying click simulation');
+          
+          // Look for any button or element that might trigger file upload
+          const uploadTriggers = [
+            'button[aria-label*="upload"]',
+            'button[aria-label*="attach"]',
+            'button[aria-label*="file"]',
+            'button[title*="upload"]',
+            'button[title*="attach"]',
+            '[data-testid*="upload"]',
+            '[data-testid*="attach"]',
+            '.upload-button',
+            '.attach-button',
+            'button:has(svg[data-testid="paperclip"])',
+            'button:has(svg[data-testid="attach"])'
+          ];
+          
+          let uploadButton = null;
+          for (const selector of uploadTriggers) {
+            uploadButton = document.querySelector(selector);
+            if (uploadButton) {
+              console.log('[IMAGE] Found upload trigger:', selector);
+              break;
+            }
+          }
+          
+          if (uploadButton) {
+            // Click the upload button to reveal file input
+            uploadButton.click();
+            await sleep(1000);
+            
+            // Now look for the file input again
+            const newInputs = document.querySelectorAll('input[type="file"]');
+            for (const input of newInputs) {
+              if (!input.disabled && (input.accept.includes('image') || input.accept === '*' || input.accept === '')) {
+                fileInput = input;
+                console.log('[IMAGE] Found file input after button click:', input);
+                break;
+              }
+            }
+          }
+          
+          // Method 5: Create a new file input if still none found
+          if (!fileInput) {
+            console.log('[IMAGE] Still no file input found, creating new one');
+            fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+          }
         }
         
         if (!fileInput) {
@@ -315,6 +360,13 @@ javascript:(async () => {
       try {
         const imageFile = await imageUrlToFile(imageUrl);
         await uploadImage(imageFile);
+        
+        // Wait a bit longer for ChatGPT to process the image
+        if (isAutomated) {
+          console.log('[AUTOMATED] Waiting for ChatGPT to process the uploaded image...');
+        }
+        await sleep(5000); // Wait 5 seconds for image processing
+        
       } catch (error) {
         if (isAutomated) {
           console.log(`[AUTOMATED] ERROR: Image upload failed - ${error.message}`);
