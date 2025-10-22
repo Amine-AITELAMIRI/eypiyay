@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, HttpUrl
 
-from . import database
+from . import database_supabase as database
 from . import webhook
 
 app = FastAPI(title="ChatGPT Relay Server", version="0.1.0")
@@ -141,40 +141,12 @@ def view_requests(
     Use with caution in production environments.
     """
     try:
-        with database.get_connection() as conn:
-            with conn.cursor() as cur:
-                # Build query with optional status filter
-                query = "SELECT * FROM requests"
-                params = []
-                
-                if status:
-                    query += " WHERE status = %s"
-                    params.append(status)
-                
-                query += " ORDER BY created_at DESC LIMIT %s"
-                params.append(limit)
-                
-                cur.execute(query, params)
-                rows = cur.fetchall()
-                
-                # Get column names
-                columns = [desc[0] for desc in cur.description]
-                
-                # Convert to list of dictionaries
-                records = []
-                for row in rows:
-                    record = dict(zip(columns, row))
-                    # Convert datetime objects to strings
-                    for key, value in record.items():
-                        if hasattr(value, 'isoformat'):
-                            record[key] = value.isoformat()
-                    records.append(record)
-                
-                return DatabaseRequestsResponse(
-                    status="success",
-                    count=len(records),
-                    records=records
-                )
+        records = database.get_all_requests(limit=limit, status=status)
+        return DatabaseRequestsResponse(
+            status="success",
+            count=len(records),
+            records=records
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
@@ -185,36 +157,14 @@ def database_stats(api_key: str = Depends(verify_api_key)) -> DatabaseStatsRespo
     Get database statistics (development/admin use only).
     """
     try:
-        with database.get_connection() as conn:
-            with conn.cursor() as cur:
-                # Get total counts by status
-                cur.execute("""
-                    SELECT status, COUNT(*) as count 
-                    FROM requests 
-                    GROUP BY status
-                """)
-                status_counts = dict(cur.fetchall())
-                
-                # Get total records
-                cur.execute("SELECT COUNT(*) FROM requests")
-                total_count = cur.fetchone()[0]
-                
-                # Get oldest and newest records
-                cur.execute("""
-                    SELECT 
-                        MIN(created_at) as oldest,
-                        MAX(created_at) as newest
-                    FROM requests
-                """)
-                oldest, newest = cur.fetchone()
-                
-                return DatabaseStatsResponse(
-                    status="success",
-                    total_requests=total_count,
-                    status_breakdown=status_counts,
-                    oldest_request=oldest.isoformat() if oldest else None,
-                    newest_request=newest.isoformat() if newest else None
-                )
+        stats = database.get_stats()
+        return DatabaseStatsResponse(
+            status="success",
+            total_requests=stats['total_requests'],
+            status_breakdown=stats['status_breakdown'],
+            oldest_request=stats['oldest_request'],
+            newest_request=stats['newest_request']
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 

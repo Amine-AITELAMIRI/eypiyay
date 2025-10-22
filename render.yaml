@@ -6,10 +6,11 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn server.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: DATABASE_URL
+      - key: SUPABASE_URL
+        value: "https://hizcmicfsbirljnfaogr.supabase.co"
+      - key: SUPABASE_KEY
         sync: false
-        # Set this to your Supabase connection string:
-        # postgresql://postgres.hizcmicfsbirljnfaogr:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+        # Set to your Supabase service_role key (secret key)
       - key: API_KEY
         sync: false
       - key: RETENTION_HOURS
