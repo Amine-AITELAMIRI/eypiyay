@@ -163,9 +163,18 @@ javascript:(async () => {
         let blob;
         
         if (url.startsWith('data:')) {
-          // Handle base64 data URL
-          const response = await fetch(url);
-          blob = await response.blob();
+          // Handle base64 data URL - convert directly without fetch
+          const base64Data = url.split(',')[1];
+          const mimeType = url.split(',')[0].split(':')[1].split(';')[0];
+          
+          // Convert base64 to binary
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          blob = new Blob([bytes], { type: mimeType });
         } else {
           // Handle regular URL - fetch it
           const response = await fetch(url);
