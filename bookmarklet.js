@@ -223,28 +223,58 @@ javascript:(async () => {
         }
         showToast("Uploading image...", "info");
         
-        // Try to find file input - ChatGPT has a hidden file input for attachments
-        const fileInputSelectors = [
-          'input[type="file"]',
-          'input[accept*="image"]',
-          'input[data-testid="file-upload"]'
-        ];
-        
+        // Try multiple approaches to find file input
         let fileInput = null;
-        for (const selector of fileInputSelectors) {
-          const inputs = document.querySelectorAll(selector);
-          for (const input of inputs) {
-            // Find visible or hidden file inputs that accept images
+        
+        // Method 1: Look for visible file inputs
+        const visibleInputs = document.querySelectorAll('input[type="file"]:not([style*="display: none"])');
+        for (const input of visibleInputs) {
+          if (!input.disabled && (input.accept.includes('image') || input.accept === '*' || input.accept === '')) {
+            fileInput = input;
+            console.log('[IMAGE] Found visible file input:', input);
+            break;
+          }
+        }
+        
+        // Method 2: Look for hidden file inputs
+        if (!fileInput) {
+          const hiddenInputs = document.querySelectorAll('input[type="file"]');
+          for (const input of hiddenInputs) {
             if (!input.disabled && (input.accept.includes('image') || input.accept === '*' || input.accept === '')) {
               fileInput = input;
+              console.log('[IMAGE] Found hidden file input:', input);
               break;
             }
           }
-          if (fileInput) break;
+        }
+        
+        // Method 3: Look for any file input and make it visible
+        if (!fileInput) {
+          const anyInput = document.querySelector('input[type="file"]');
+          if (anyInput) {
+            fileInput = anyInput;
+            // Make it visible temporarily
+            fileInput.style.display = 'block';
+            fileInput.style.position = 'absolute';
+            fileInput.style.top = '0';
+            fileInput.style.left = '0';
+            fileInput.style.opacity = '0.1';
+            console.log('[IMAGE] Made file input visible:', fileInput);
+          }
+        }
+        
+        // Method 4: Create a new file input if none found
+        if (!fileInput) {
+          console.log('[IMAGE] No file input found, creating new one');
+          fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = 'image/*';
+          fileInput.style.display = 'none';
+          document.body.appendChild(fileInput);
         }
         
         if (!fileInput) {
-          throw new Error('Could not find file upload input in ChatGPT interface');
+          throw new Error('Could not find or create file upload input');
         }
         
         // Create a DataTransfer object to simulate file selection
@@ -256,11 +286,21 @@ javascript:(async () => {
         const changeEvent = new Event('change', { bubbles: true });
         fileInput.dispatchEvent(changeEvent);
         
+        // Also try input event
+        const inputEvent = new Event('input', { bubbles: true });
+        fileInput.dispatchEvent(inputEvent);
+        
+        // Try click event to trigger any click handlers
+        const clickEvent = new Event('click', { bubbles: true });
+        fileInput.dispatchEvent(clickEvent);
+        
+        console.log('[IMAGE] File uploaded, waiting for processing...');
+        
         // Wait for upload to be processed
-        await sleep(2000);
+        await sleep(3000);
         
         if (isAutomated) {
-          console.log('[AUTOMATED] Image uploaded successfully');
+          console.log('[AUTOMATED] Image upload completed');
         }
         showToast("Image uploaded successfully", "success");
       } catch (error) {
