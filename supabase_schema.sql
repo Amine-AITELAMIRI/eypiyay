@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS requests (
     webhook_url TEXT,
     webhook_delivered BOOLEAN NOT NULL DEFAULT FALSE,
     prompt_mode TEXT,
-    model_mode TEXT
+    model_mode TEXT,
+    image_url TEXT
 );
 
 -- Create indexes for better performance

@@ -125,6 +125,11 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, ch
         prompt_mode = job.get("prompt_mode")
         if prompt_mode:
             send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPromptMode = {json.dumps(prompt_mode)};"})
+        
+        # Set image URL if available in the job
+        image_url = job.get("image_url")
+        if image_url:
+            send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletImageUrl = {json.dumps(image_url)};"})
 
         send(
             "Runtime.evaluate",

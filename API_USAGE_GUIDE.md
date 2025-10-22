@@ -183,6 +183,37 @@ X-API-Key: your-api-key
 ```
 *Uses gpt-5-instant for quick responses*
 
+### `image_url` (Optional)
+**Type:** `string`  
+**Description:** URL or base64-encoded image to send along with the prompt  
+**Format:** Valid HTTP/HTTPS URL or base64 data URI
+
+**Examples:**
+```json
+{
+  "prompt": "What's in this image?",
+  "image_url": "https://example.com/photo.jpg"
+}
+```
+*Sends an image from a public URL*
+
+```json
+{
+  "prompt": "Analyze this screenshot",
+  "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+}
+```
+*Sends a base64-encoded image*
+
+```json
+{
+  "prompt": "Describe the differences between these architectural styles",
+  "image_url": "https://images.example.com/architecture.jpg",
+  "model_mode": "thinking"
+}
+```
+*Combines image analysis with detailed thinking mode*
+
 ## 📤 Response Fields
 
 ### Request Response Object
@@ -198,6 +229,7 @@ X-API-Key: your-api-key
   "webhook_delivered": "boolean",
   "prompt_mode": "string|null",
   "model_mode": "string|null",
+  "image_url": "string|null",
   "created_at": "string (ISO 8601)",
   "updated_at": "string (ISO 8601)"
 }
@@ -217,6 +249,7 @@ X-API-Key: your-api-key
 | `webhook_delivered` | `boolean` | Whether webhook was successfully delivered |
 | `prompt_mode` | `string\|null` | Prompt mode used (`search`, `study`, or `null`) |
 | `model_mode` | `string\|null` | Model mode used (`auto`, `thinking`, `instant`, or `null`) |
+| `image_url` | `string\|null` | Image URL or base64 data if image was provided |
 | `created_at` | `string` | Request creation timestamp (ISO 8601) |
 | `updated_at` | `string` | Last update timestamp (ISO 8601) |
 
@@ -392,6 +425,67 @@ response = requests.post(
         "model_mode": "thinking"
     }
 )
+```
+
+### Request with Image (URL)
+```python
+import requests
+
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "What objects are in this image?",
+        "image_url": "https://example.com/photo.jpg"
+    }
+)
+
+request_id = response.json()["id"]
+print(f"Request ID: {request_id}")
+```
+
+### Request with Image (Base64)
+```python
+import requests
+import base64
+
+# Read and encode image
+with open("screenshot.png", "rb") as image_file:
+    encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    image_data_url = f"data:image/png;base64,{encoded_string}"
+
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "Analyze this screenshot and describe what you see",
+        "image_url": image_data_url,
+        "model_mode": "thinking"
+    }
+)
+
+request_id = response.json()["id"]
+print(f"Request ID: {request_id}")
+```
+
+### Request with Multiple Parameters
+```python
+import requests
+
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "Research the architectural style shown in this image",
+        "image_url": "https://example.com/building.jpg",
+        "prompt_mode": "search",
+        "model_mode": "thinking",
+        "webhook_url": "https://your-server.com/webhook"
+    }
+)
+
+request_id = response.json()["id"]
+print(f"Request ID: {request_id}")
 ```
 
 ### Polling for Response

@@ -38,6 +38,7 @@ class RequestRecord:
     webhook_delivered: bool
     prompt_mode: Optional[str]
     model_mode: Optional[str]
+    image_url: Optional[str]
     created_at: str
     updated_at: str
 
@@ -55,6 +56,7 @@ def _row_to_record(row: Dict[str, Any]) -> RequestRecord:
         webhook_delivered=row.get('webhook_delivered', False),
         prompt_mode=row.get('prompt_mode'),
         model_mode=row.get('model_mode'),
+        image_url=row.get('image_url'),
         created_at=row['created_at'],
         updated_at=row['updated_at'],
     )
@@ -82,7 +84,8 @@ def create_request(
     prompt: str, 
     webhook_url: Optional[str] = None, 
     prompt_mode: Optional[str] = None, 
-    model_mode: Optional[str] = None
+    model_mode: Optional[str] = None,
+    image_url: Optional[str] = None
 ) -> RequestRecord:
     """Create a new request"""
     supabase = get_supabase()
@@ -93,6 +96,7 @@ def create_request(
         'webhook_url': webhook_url,
         'prompt_mode': prompt_mode,
         'model_mode': model_mode,
+        'image_url': image_url,
         'webhook_delivered': False
     }
     

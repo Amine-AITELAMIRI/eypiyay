@@ -121,11 +121,18 @@ javascript:(async () => {
       ? window.__chatgptBookmarkletPromptMode
       : null;
     
+    const imageUrl = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletImageUrl")
+      ? window.__chatgptBookmarkletImageUrl
+      : null;
+    
     const isAutomated = typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt");
     
     if (isAutomated) {
       console.log(`[AUTOMATED] Prompt received: ${promptTextSource}`);
       console.log(`[AUTOMATED] ChatGPT UI detected using selector: ${ready ? 'found' : 'not found'}`);
+      if (imageUrl) {
+        console.log(`[AUTOMATED] Image URL received: ${imageUrl.substring(0, 100)}...`);
+      }
     }
     
     if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPrompt")) {
@@ -133,6 +140,9 @@ javascript:(async () => {
     }
     if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletPromptMode")) {
       delete window.__chatgptBookmarkletPromptMode;
+    }
+    if (typeof window !== "undefined" && Object.prototype.hasOwnProperty.call(window, "__chatgptBookmarkletImageUrl")) {
+      delete window.__chatgptBookmarkletImageUrl;
     }
     const promptText =
       promptTextSource !== null && promptTextSource !== undefined
@@ -146,6 +156,125 @@ javascript:(async () => {
     }
   
     showToast("Sending prompt to ChatGPT...", "info");
+  
+    // Helper function to convert image URL to File object
+    const imageUrlToFile = async (url) => {
+      try {
+        let blob;
+        
+        if (url.startsWith('data:')) {
+          // Handle base64 data URL
+          const response = await fetch(url);
+          blob = await response.blob();
+        } else {
+          // Handle regular URL - fetch it
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+          }
+          blob = await response.blob();
+        }
+        
+        // Extract filename and extension
+        let filename = 'image.png';
+        if (!url.startsWith('data:')) {
+          try {
+            const urlObj = new URL(url);
+            const pathname = urlObj.pathname;
+            const parts = pathname.split('/');
+            const lastPart = parts[parts.length - 1];
+            if (lastPart && lastPart.includes('.')) {
+              filename = lastPart;
+            }
+          } catch (e) {
+            // Use default filename if URL parsing fails
+          }
+        } else {
+          // For base64, extract MIME type
+          const mimeMatch = url.match(/^data:([^;]+);/);
+          if (mimeMatch) {
+            const mime = mimeMatch[1];
+            const ext = mime.split('/')[1] || 'png';
+            filename = `image.${ext}`;
+          }
+        }
+        
+        return new File([blob], filename, { type: blob.type });
+      } catch (error) {
+        console.error('[IMAGE] Failed to convert URL to file:', error);
+        throw error;
+      }
+    };
+    
+    // Helper function to upload image to ChatGPT
+    const uploadImage = async (imageFile) => {
+      try {
+        if (isAutomated) {
+          console.log(`[AUTOMATED] Uploading image: ${imageFile.name}`);
+        }
+        showToast("Uploading image...", "info");
+        
+        // Try to find file input - ChatGPT has a hidden file input for attachments
+        const fileInputSelectors = [
+          'input[type="file"]',
+          'input[accept*="image"]',
+          'input[data-testid="file-upload"]'
+        ];
+        
+        let fileInput = null;
+        for (const selector of fileInputSelectors) {
+          const inputs = document.querySelectorAll(selector);
+          for (const input of inputs) {
+            // Find visible or hidden file inputs that accept images
+            if (!input.disabled && (input.accept.includes('image') || input.accept === '*' || input.accept === '')) {
+              fileInput = input;
+              break;
+            }
+          }
+          if (fileInput) break;
+        }
+        
+        if (!fileInput) {
+          throw new Error('Could not find file upload input in ChatGPT interface');
+        }
+        
+        // Create a DataTransfer object to simulate file selection
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(imageFile);
+        fileInput.files = dataTransfer.files;
+        
+        // Trigger change event to notify ChatGPT
+        const changeEvent = new Event('change', { bubbles: true });
+        fileInput.dispatchEvent(changeEvent);
+        
+        // Wait for upload to be processed
+        await sleep(2000);
+        
+        if (isAutomated) {
+          console.log('[AUTOMATED] Image uploaded successfully');
+        }
+        showToast("Image uploaded successfully", "success");
+      } catch (error) {
+        console.error('[IMAGE] Failed to upload image:', error);
+        showToast(`Image upload failed: ${error.message}`, "error");
+        throw error;
+      }
+    };
+    
+    // Handle image upload if provided
+    if (imageUrl) {
+      try {
+        const imageFile = await imageUrlToFile(imageUrl);
+        await uploadImage(imageFile);
+      } catch (error) {
+        if (isAutomated) {
+          console.log(`[AUTOMATED] ERROR: Image upload failed - ${error.message}`);
+          throw new Error(`Image upload failed: ${error.message}`);
+        }
+        alert(`Failed to upload image: ${error.message}`);
+        return;
+      }
+    }
   
     const waitForComposer = async () => {
       for (let i = 0; i < 40; i += 1) {

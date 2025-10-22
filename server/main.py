@@ -46,6 +46,7 @@ class CreateRequest(BaseModel):
     webhook_url: Optional[HttpUrl] = Field(None, description="URL to receive webhook notifications when request completes")
     prompt_mode: Optional[str] = Field(None, description="Special prompt mode like 'search' or 'study' that types /sear or /stu before the prompt")
     model_mode: Optional[str] = Field(None, description="Model mode: auto, thinking, instant - determines which ChatGPT model to use")
+    image_url: Optional[str] = Field(None, description="URL or base64-encoded image to send along with the prompt")
 
 
 class RequestResponse(BaseModel):
@@ -59,6 +60,7 @@ class RequestResponse(BaseModel):
     webhook_delivered: bool
     prompt_mode: Optional[str]
     model_mode: Optional[str]
+    image_url: Optional[str]
     created_at: str
     updated_at: str
 
@@ -191,7 +193,7 @@ def manual_cleanup(
 @app.post("/requests", response_model=RequestResponse, status_code=201)
 def create_request(payload: CreateRequest, api_key: str = Depends(verify_api_key)) -> RequestResponse:
     webhook_url = str(payload.webhook_url) if payload.webhook_url else None
-    record = database.create_request(payload.prompt, webhook_url, payload.prompt_mode, payload.model_mode)
+    record = database.create_request(payload.prompt, webhook_url, payload.prompt_mode, payload.model_mode, payload.image_url)
     return RequestResponse(**database.serialize(record))
 
 
