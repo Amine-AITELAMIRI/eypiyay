@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import logging
 import time
@@ -100,6 +101,34 @@ def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str) -> None:
     time.sleep(3)
 
 
+def fetch_and_encode_image(image_url: str) -> Optional[str]:
+    """Fetch an image URL and convert it to base64 data URI"""
+    try:
+        # If already a data URI, return as-is
+        if image_url.startswith('data:'):
+            logger.info("Image is already a data URI, using as-is")
+            return image_url
+        
+        # Fetch the image
+        logger.info(f"Fetching image from {image_url}")
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        
+        # Get content type
+        content_type = response.headers.get('Content-Type', 'image/png')
+        
+        # Encode to base64
+        encoded = base64.b64encode(response.content).decode('utf-8')
+        data_uri = f"data:{content_type};base64,{encoded}"
+        
+        logger.info(f"Successfully converted image to base64 ({len(encoded)} bytes)")
+        return data_uri
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch and encode image: {e}")
+        return None
+
+
 def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, chatgpt_url: str) -> Dict[str, Any]:
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
@@ -127,9 +156,13 @@ def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, ch
             send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletPromptMode = {json.dumps(prompt_mode)};"})
         
         # Set image URL if available in the job
+        # Convert to base64 data URI if it's a URL to avoid CSP issues
         image_url = job.get("image_url")
         if image_url:
-            send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletImageUrl = {json.dumps(image_url)};"})
+            # Convert external URLs to base64 to avoid CSP violations in ChatGPT
+            converted_image = fetch_and_encode_image(image_url)
+            if converted_image:
+                send("Runtime.evaluate", {"expression": f"window.__chatgptBookmarkletImageUrl = {json.dumps(converted_image)};"})
 
         send(
             "Runtime.evaluate",
