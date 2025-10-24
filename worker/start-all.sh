@@ -12,6 +12,7 @@ export CHATGPT_URL="https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-a
 export CHROME_HOST="localhost"
 export CHROME_PORT="9222"
 export POLL_INTERVAL="3.0"
+export RESPONSE_TIMEOUT="600"
 
 # Change to the project directory
 cd ~/eypiyay || exit 1
@@ -110,6 +111,7 @@ python -m worker.cdp_worker \
   --port "$CHROME_PORT" \
   --poll-interval "$POLL_INTERVAL" \
   --chatgpt-url "$CHATGPT_URL" \
+  --response-timeout "$RESPONSE_TIMEOUT" \
   2>&1 | tee -a "$LOG_FILE"
 
 # If worker exits, log it
