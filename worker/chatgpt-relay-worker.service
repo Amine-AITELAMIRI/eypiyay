@@ -1,0 +1,26 @@
+[Unit]
+Description=ChatGPT Relay Worker
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/eypiyay
+ExecStart=/home/pi/eypiyay/worker/start-all.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment="SERVER_URL=https://chatgpt-relay-api.onrender.com"
+Environment="API_KEY=72b0253ba06e73484e2b71370a503ce00183b59750e4be1dd5eb10896587954a"
+Environment="WORKER_ID=raspberry-pi-worker"
+Environment="CHATGPT_URL=https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project"
+Environment="CHROME_HOST=localhost"
+Environment="CHROME_PORT=9222"
+Environment="POLL_INTERVAL=3.0"
+
+[Install]
+WantedBy=multi-user.target
+
