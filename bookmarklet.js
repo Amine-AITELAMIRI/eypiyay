@@ -530,24 +530,38 @@ javascript:(async () => {
     await sleep(1000);
   
     const waitForResponseMarker = async () => {
+      let noStopButtonCount = 0;
+      const requiredNoStopButtonCount = 4; // Wait for 4 consecutive checks without stop button
+      
       while (true) {
         // Check for the stop button (square icon) - indicates still processing
         const stopButton = document.querySelector('button[data-testid="stop-button"]');
         
-        // Check for the voice mode button (sound waves icon) - indicates finished
-        const voiceButton = document.querySelector('button[data-testid="composer-speech-button"]');
+        // If we still have the stop button, ChatGPT is still processing
+        if (stopButton) {
+          console.log("ChatGPT still processing - stop button detected");
+          noStopButtonCount = 0; // Reset counter
+          await sleep(250);
+          continue;
+        }
         
-        // If we have the voice button and no stop button, ChatGPT has finished processing
-        if (voiceButton && !stopButton) {
+        // No stop button found - increment counter
+        noStopButtonCount++;
+        
+        if (noStopButtonCount >= requiredNoStopButtonCount) {
+          console.log(`ChatGPT finished processing - stop button absent for ${noStopButtonCount} checks`);
+          return true;
+        }
+        
+        // Check for the voice mode button (sound waves icon) as confirmation
+        const voiceButton = document.querySelector('button[data-testid="composer-speech-button"]');
+        if (voiceButton) {
           console.log("ChatGPT finished processing - voice button detected");
           return voiceButton;
         }
         
-        // If we still have the stop button, ChatGPT is still processing
-        if (stopButton) {
-          console.log("ChatGPT still processing - stop button detected");
-          await sleep(250);
-          continue;
+        if (isAutomated) {
+          console.log(`Waiting for response completion (no stop button count: ${noStopButtonCount}/${requiredNoStopButtonCount})`);
         }
         
         await sleep(250);

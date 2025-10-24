@@ -112,6 +112,7 @@ python -m worker.cdp_worker \
   --timeout "$CDP_TIMEOUT" \
   --poll-interval "$POLL_INTERVAL" \
   --chatgpt-url "$CHATGPT_URL" \
+  --script bookmarklet.js \
   2>&1 | tee -a "$LOG_FILE"
 
 # If worker exits, log it
