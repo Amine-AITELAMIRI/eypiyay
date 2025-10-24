@@ -73,6 +73,20 @@ fi
 
 log "Chrome is ready on port $CHROME_PORT"
 
+# Activate virtual environment
+VENV_PATH="$HOME/chatgpt-relay-env"
+if [ ! -d "$VENV_PATH" ]; then
+    log "ERROR: Virtual environment not found at $VENV_PATH"
+    exit 1
+fi
+
+log "Activating virtual environment: $VENV_PATH"
+source "$VENV_PATH/bin/activate"
+
+# Verify we're using the venv python
+PYTHON_PATH=$(which python)
+log "Using Python: $PYTHON_PATH"
+
 # Start the worker process
 log "Starting worker process..."
 log "Worker ID: $WORKER_ID"
