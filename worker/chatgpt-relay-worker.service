@@ -4,9 +4,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/eypiyay
-ExecStart=/home/pi/eypiyay/worker/start-all.sh
+# NOTE: This file is a template. Use install-service.sh to create the actual service file with correct paths.
+# Replace YOUR_USERNAME with your actual username and update paths accordingly
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/eypiyay
+ExecStart=/home/YOUR_USERNAME/eypiyay/worker/start-all.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal
