@@ -35,6 +35,7 @@ sleep 2
 
 # Start Chrome with remote debugging enabled
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
+log "Opening ChatGPT URL: $CHATGPT_URL"
 chromium-browser \
   --remote-debugging-port=$CHROME_PORT \
   --remote-allow-origins=http://localhost:$CHROME_PORT \
@@ -50,6 +51,7 @@ chromium-browser \
   --disable-features=VizDisplayCompositor \
   --memory-pressure-off \
   --max_old_space_size=4096 \
+  "$CHATGPT_URL" \
   > /dev/null 2>&1 &
 
 CHROME_PID=$!
@@ -72,6 +74,10 @@ if ! nc -z localhost $CHROME_PORT; then
 fi
 
 log "Chrome is ready on port $CHROME_PORT"
+
+# Wait a bit more for the page to load
+log "Waiting for page to load..."
+sleep 3
 
 # Activate virtual environment
 VENV_PATH="$HOME/chatgpt-relay-env"
