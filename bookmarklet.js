@@ -632,8 +632,15 @@ javascript:(async () => {
           ".markdown"
         ];
         
+        if (isAutomated && i % 10 === 0) {
+          console.log(`[AUTOMATED] Waiting for response text... attempt ${i}/200`);
+        }
+        
         for (const selector of selectors) {
           const elements = document.querySelectorAll(selector);
+          if (isAutomated && i === 0 && elements.length > 0) {
+            console.log(`[AUTOMATED] Found ${elements.length} elements with selector: ${selector}`);
+          }
           // Get the last (most recent) element
           for (let j = elements.length - 1; j >= 0; j--) {
             const element = elements[j];
@@ -641,6 +648,9 @@ javascript:(async () => {
             if (rawText && rawText.length > 10) { // Ensure it's substantial content
               const cleanedText = cleanResponseText(rawText);
               if (cleanedText && cleanedText.length > 5) { // Ensure cleaned text is still substantial
+                if (isAutomated) {
+                  console.log(`[AUTOMATED] Found response text with selector: ${selector}`);
+                }
                 return cleanedText;
               }
             }
@@ -648,6 +658,10 @@ javascript:(async () => {
         }
         
         await sleep(500);
+      }
+      
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: Timeout waiting for response text after 200 attempts");
       }
       return null;
     };
