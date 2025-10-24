@@ -18,6 +18,14 @@ import cdp_send_prompt as bookmarklet
 
 logger = logging.getLogger(__name__)
 
+# Import VPN rotation module (optional dependency)
+try:
+    import vpn_rotate_min
+    VPN_AVAILABLE = True
+except ImportError:
+    VPN_AVAILABLE = False
+    logger.warning("vpn_rotate_min module not available, VPN rotation will be disabled")
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ChatGPT relay worker")
@@ -35,6 +43,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index", type=int, help="Force a specific tab index")
     parser.add_argument("--exact-url", help="Select tab whose URL matches exactly")
     parser.add_argument("--chatgpt-url", default="https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-api-auto/project", help="ChatGPT URL to navigate to for each request")
+    parser.add_argument("--vpn-rotate", action="store_true", help="Enable VPN rotation for search mode requests (requires NordVPN)")
+    parser.add_argument("--vpn-region", help="Optional VPN region to prefer (e.g., 'france', 'united_states')")
+    parser.add_argument("--vpn-max-retries", type=int, default=2, help="Maximum retry attempts for VPN connection")
     return parser.parse_args()
 
 
@@ -129,7 +140,70 @@ def fetch_and_encode_image(image_url: str) -> Optional[str]:
         return None
 
 
-def run_prompt(ws_url: str, script: str, job: Dict[str, Any], timeout: float, chatgpt_url: str) -> Dict[str, Any]:
+def rotate_vpn_if_needed(prompt_mode: Optional[str], vpn_enabled: bool, vpn_region: Optional[str] = None, vpn_max_retries: int = 2) -> None:
+    """
+    Rotate VPN connection if prompt_mode is 'search' and VPN rotation is enabled.
+    
+    Args:
+        prompt_mode: The prompt mode (e.g., 'search', 'study')
+        vpn_enabled: Whether VPN rotation is enabled via command-line flag
+        vpn_region: Optional region to prefer for VPN connection
+        vpn_max_retries: Maximum retry attempts for VPN connection
+    """
+    # Skip if VPN rotation is not enabled
+    if not vpn_enabled:
+        return
+    
+    # Skip if not in search mode
+    if prompt_mode != "search":
+        logger.debug(f"Skipping VPN rotation for prompt_mode={prompt_mode}")
+        return
+    
+    # Check if VPN module is available
+    if not VPN_AVAILABLE:
+        logger.warning("VPN rotation requested but vpn_rotate_min module is not available")
+        return
+    
+    logger.info("Search mode detected, rotating VPN to get fresh IP address...")
+    
+    try:
+        result = vpn_rotate_min.rotate(
+            region=vpn_region,
+            require_new=True,
+            max_retries=vpn_max_retries,
+            connect_timeout_s=20,
+        )
+        
+        if result["ok"]:
+            logger.info(
+                f"VPN rotation successful! Connected to: {result.get('server')} "
+                f"({result.get('country')}, {result.get('city')}) "
+                f"[{result.get('protocol')}] (retries: {result.get('retries', 0)})"
+            )
+        else:
+            logger.warning(
+                f"VPN rotation failed: {result.get('error', 'Unknown error')}. "
+                f"Continuing with current connection (retries: {result.get('retries', 0)})"
+            )
+    except Exception as e:
+        logger.error(f"Unexpected error during VPN rotation: {e}. Continuing with current connection")
+        # Don't raise - continue with the request even if VPN rotation fails
+
+
+def run_prompt(
+    ws_url: str, 
+    script: str, 
+    job: Dict[str, Any], 
+    timeout: float, 
+    chatgpt_url: str,
+    vpn_enabled: bool = False,
+    vpn_region: Optional[str] = None,
+    vpn_max_retries: int = 2,
+) -> Dict[str, Any]:
+    # Rotate VPN before running the prompt if needed (for search mode)
+    prompt_mode = job.get("prompt_mode")
+    rotate_vpn_if_needed(prompt_mode, vpn_enabled, vpn_region, vpn_max_retries)
+    
     ws = websocket.create_connection(ws_url, timeout=timeout)
     message_id = 0
 
@@ -283,7 +357,16 @@ def main() -> int:
         logger.info("Processing request %s", request_id)
 
         try:
-            result = run_prompt(ws_url, script, job, args.timeout, args.chatgpt_url)
+            result = run_prompt(
+                ws_url, 
+                script, 
+                job, 
+                args.timeout, 
+                args.chatgpt_url,
+                vpn_enabled=args.vpn_rotate,
+                vpn_region=args.vpn_region,
+                vpn_max_retries=args.vpn_max_retries,
+            )
         except Exception as exc:
             logger.error("Prompt %s failed: %s", request_id, exc)
             try:

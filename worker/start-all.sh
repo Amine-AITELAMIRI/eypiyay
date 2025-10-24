@@ -14,6 +14,12 @@ export CHROME_PORT="9222"
 export POLL_INTERVAL="3.0"
 export CDP_TIMEOUT="300.0"
 
+# VPN Rotation settings (for avoiding search engine blacklisting)
+# Set to "true" to enable VPN rotation for search mode requests
+export VPN_ROTATE="false"
+export VPN_REGION=""  # Optional: specify region (e.g., "france", "united_states")
+export VPN_MAX_RETRIES="2"
+
 # Change to the project directory
 cd ~/eypiyay || exit 1
 
@@ -94,6 +100,22 @@ source "$VENV_PATH/bin/activate"
 PYTHON_PATH=$(which python)
 log "Using Python: $PYTHON_PATH"
 
+# Build VPN arguments
+VPN_ARGS=""
+if [ "$VPN_ROTATE" = "true" ]; then
+    log "VPN rotation enabled for search mode"
+    VPN_ARGS="--vpn-rotate"
+    if [ -n "$VPN_REGION" ]; then
+        log "VPN region preference: $VPN_REGION"
+        VPN_ARGS="$VPN_ARGS --vpn-region $VPN_REGION"
+    fi
+    if [ -n "$VPN_MAX_RETRIES" ]; then
+        VPN_ARGS="$VPN_ARGS --vpn-max-retries $VPN_MAX_RETRIES"
+    fi
+else
+    log "VPN rotation disabled"
+fi
+
 # Start the worker process
 log "Starting worker process..."
 log "Worker ID: $WORKER_ID"
@@ -113,6 +135,7 @@ python -m worker.cdp_worker \
   --poll-interval "$POLL_INTERVAL" \
   --chatgpt-url "$CHATGPT_URL" \
   --script bookmarklet.js \
+  $VPN_ARGS \
   2>&1 | tee -a "$LOG_FILE"
 
 # If worker exits, log it

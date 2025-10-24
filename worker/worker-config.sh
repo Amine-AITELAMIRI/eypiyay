@@ -21,3 +21,14 @@ export CHROME_PORT="9222"
 
 # Worker settings
 export POLL_INTERVAL="3.0"
+
+# VPN Rotation settings (for avoiding search engine blacklisting)
+# Set to "true" to enable VPN rotation for search mode requests
+export VPN_ROTATE="false"
+
+# Optional: Specify a preferred VPN region (e.g., "france", "united_states")
+# Leave empty to connect to the fastest available server
+export VPN_REGION=""
+
+# Maximum retry attempts for VPN connection (default: 2)
+export VPN_MAX_RETRIES="2"
