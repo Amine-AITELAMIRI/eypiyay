@@ -223,6 +223,7 @@ X-API-Key: your-api-key
   "prompt": "string",
   "status": "string",
   "response": "string|null",
+  "sources": "array|null",
   "error": "string|null",
   "worker_id": "string|null",
   "webhook_url": "string|null",
@@ -242,7 +243,8 @@ X-API-Key: your-api-key
 | `id` | `integer` | Unique request identifier |
 | `prompt` | `string` | Original prompt text |
 | `status` | `string` | Request status: `pending`, `processing`, `completed`, `failed` |
-| `response` | `string\|null` | ChatGPT's response (JSON string when completed) |
+| `response` | `string\|null` | ChatGPT's response (JSON string when completed, clean content without source citations) |
+| `sources` | `array\|null` | Array of source objects if ChatGPT provided sources (common in search mode) |
 | `error` | `string\|null` | Error message if request failed |
 | `worker_id` | `string\|null` | ID of worker processing the request |
 | `webhook_url` | `string\|null` | Webhook URL if provided |
@@ -252,6 +254,33 @@ X-API-Key: your-api-key
 | `image_url` | `string\|null` | Image URL or base64 data if image was provided |
 | `created_at` | `string` | Request creation timestamp (ISO 8601) |
 | `updated_at` | `string` | Last update timestamp (ISO 8601) |
+
+### Sources Format
+
+When ChatGPT provides sources (especially in search mode), they are parsed and returned separately:
+
+```json
+{
+  "response": "{\"prompt\":\"...\",\"response\":\"Clean content here\",\"sources\":[...],\"timestamp\":\"...\",\"url\":\"...\"}",
+  "sources": [
+    {
+      "number": 1,
+      "url": "https://example.com/article",
+      "title": "Article Title or Description"
+    },
+    {
+      "number": 2,
+      "url": "https://another-site.com/page",
+      "title": "Page Title"
+    }
+  ]
+}
+```
+
+**Benefits:**
+- Clean response content without [1], [2] citations cluttering the text
+- Structured source data for easy display
+- Preserves all source information that ChatGPT provides
 
 ## 🤖 Model Modes
 
@@ -412,6 +441,53 @@ response = requests.post(
         "prompt_mode": "study"
     }
 )
+```
+
+### Request with Search Mode (includes sources)
+```python
+import requests
+import json
+import time
+
+# Create request with search mode
+response = requests.post(
+    "https://chatgpt-relay-api.onrender.com/requests",
+    headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"},
+    json={
+        "prompt": "What are the latest developments in quantum computing?",
+        "prompt_mode": "search"  # Search mode often includes sources
+    }
+)
+
+request_id = response.json()["id"]
+
+# Poll for completion
+while True:
+    status_response = requests.get(
+        f"https://chatgpt-relay-api.onrender.com/requests/{request_id}",
+        headers={"X-API-Key": "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"}
+    )
+    
+    data = status_response.json()
+    
+    if data["status"] == "completed":
+        # Parse the response JSON
+        response_data = json.loads(data["response"])
+        
+        print("Response:", response_data["response"])
+        
+        # Check if sources are provided
+        if response_data.get("sources"):
+            print("\nSources:")
+            for source in response_data["sources"]:
+                print(f"  [{source['number']}] {source['title']}")
+                print(f"      {source['url']}")
+        break
+    elif data["status"] == "failed":
+        print(f"Request failed: {data['error']}")
+        break
+    
+    time.sleep(5)
 ```
 
 ### Request with Webhook

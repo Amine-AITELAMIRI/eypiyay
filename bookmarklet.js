@@ -672,6 +672,56 @@ javascript:(async () => {
     if (isAutomated) {
       console.log(`[AUTOMATED] Response text captured from clipboard (${responseText.length} characters)`);
     }
+    
+    // Parse sources from the response if present
+    const parseSourcesFromResponse = (text) => {
+      const result = {
+        content: text,
+        sources: []
+      };
+      
+      // Look for source citations pattern at the end of the response
+      // Pattern: [number]: URL "title" or [number]: URL — title
+      const sourcePattern = /\[(\d+)\]:\s*(https?:\/\/[^\s]+)(?:\s+"([^"]+)"|(?:\s+[—\-]\s+|\s+)(.+?))?$/gm;
+      
+      let match;
+      const foundSources = [];
+      const sourceLines = [];
+      
+      while ((match = sourcePattern.exec(text)) !== null) {
+        const [fullMatch, number, url, titleQuoted, titleDash] = match;
+        const title = titleQuoted || titleDash || url;
+        
+        foundSources.push({
+          number: parseInt(number),
+          url: url.trim(),
+          title: title.trim()
+        });
+        
+        sourceLines.push(fullMatch);
+      }
+      
+      if (foundSources.length > 0) {
+        // Remove source citations from content
+        let cleanedContent = text;
+        sourceLines.forEach(line => {
+          cleanedContent = cleanedContent.replace(line, '');
+        });
+        
+        // Also remove the empty lines and "---" separator if present
+        cleanedContent = cleanedContent.replace(/\n*---\n*$/m, '');
+        cleanedContent = cleanedContent.trim();
+        
+        result.content = cleanedContent;
+        result.sources = foundSources.sort((a, b) => a.number - b.number);
+        
+        if (isAutomated) {
+          console.log(`[AUTOMATED] Extracted ${foundSources.length} sources from response`);
+        }
+      }
+      
+      return result;
+    };
   
     if (
       responseText &&
@@ -679,9 +729,13 @@ javascript:(async () => {
       !responseText.includes("async()=>{") &&
       !responseText.includes("const sleep=")
     ) {
+      // Parse response and sources separately
+      const parsed = parseSourcesFromResponse(responseText);
+      
       const responsePayload = {
         prompt: promptText, // Store original prompt without markdown instruction
-        response: responseText,
+        response: parsed.content,
+        sources: parsed.sources.length > 0 ? parsed.sources : null,
         timestamp: new Date().toISOString(),
         url: window.location.href,
       };
