@@ -573,7 +573,7 @@ javascript:(async () => {
     }
   
     showToast("Response detected! Waiting for copy button...", "info");
-    await sleep(1000);
+    await sleep(2000); // Increased wait time for response to fully render
   
     // Find and click the copy button to get the response text
     const findAndClickCopyButton = async () => {
@@ -608,8 +608,8 @@ javascript:(async () => {
               console.log("[AUTOMATED] Copy button clicked, waiting for clipboard...");
             }
             
-            // Wait a bit for the clipboard operation to complete
-            await sleep(500);
+            // Wait for the clipboard operation to complete
+            await sleep(1500); // Increased wait time for clipboard to populate
             
             return true;
           }
@@ -661,7 +661,8 @@ javascript:(async () => {
     }
     if (!responseText || responseText.trim().length === 0) {
       if (isAutomated) {
-        console.log("[AUTOMATED] ERROR: Clipboard is empty or response text not found");
+        console.log(`[AUTOMATED] ERROR: Clipboard is empty or contains only whitespace. Length: ${responseText ? responseText.length : 0}, Trimmed: ${responseText ? responseText.trim().length : 0}`);
+        console.log(`[AUTOMATED] Clipboard content: "${responseText}"`);
         throw new Error("Clipboard is empty or response text not found");
       }
       showToast("Clipboard is empty or response text not found", "warning");
