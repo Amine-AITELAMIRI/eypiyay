@@ -313,6 +313,8 @@ X-API-Key: your-api-key
 **Use Case:** Research queries, information gathering  
 **Effect:** ChatGPT provides more research-focused responses
 
+> **🔒 VPN Rotation**: When the worker is configured with `--vpn-rotate`, search mode requests automatically rotate the IP address using NordVPN to avoid getting blacklisted. See `worker/VPN_ROTATION_GUIDE.md` for setup instructions.
+
 ```json
 {
   "prompt": "Find information about renewable energy trends",

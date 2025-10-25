@@ -464,10 +464,8 @@ javascript:(async () => {
       await sleep(500);
     }
 
-    // Prepend markdown formatting instruction to make responses easier to parse for API clients
-    const markdownInstruction = "System: You are ChatGPT.\nPlease obey these rules:\n1. All your output must be in *raw Markdown syntax*. Do **not** render headings, bold, italics, bullet lists, or code blocks—show the literal Markdown (with `#`, `*`, `[ ]` etc.).\n2. Wrap the *entire* response inside a fenced code block using three backticks ```\n3. If you include any code blocks inside your content, use a different fence so that the outer fence is not broken (for example ~~~ or another distinctive delimiter).\n4. Do not add any extra explanation about formatting. Only provide the content requested in raw Markdown.\n\n";
-    const finalPromptText = markdownInstruction + promptText;
-  
+    // Send the prompt as-is without markdown formatting instruction
+    // This allows ChatGPT to respond naturally and we'll use the copy button to get the full response
     try {
       const range = document.createRange();
       range.selectNodeContents(composer);
@@ -475,12 +473,12 @@ javascript:(async () => {
       const selection = window.getSelection();
       selection.removeAllRanges();
       selection.addRange(range);
-      document.execCommand("insertText", false, finalPromptText);
+      document.execCommand("insertText", false, promptText);
     } catch (error) {
       composer.innerHTML = "";
-      composer.textContent = finalPromptText;
+      composer.textContent = promptText;
       const inputEvent = new InputEvent("input", {
-        data: finalPromptText,
+        data: promptText,
         bubbles: true,
         composed: true,
       });
@@ -574,110 +572,104 @@ javascript:(async () => {
       console.log("[AUTOMATED] Response detected, waiting for text to load");
     }
   
-    showToast("Response detected! Waiting for text to load...", "info");
-    await sleep(2000);
+    showToast("Response detected! Waiting for copy button...", "info");
+    await sleep(1000);
   
-    const cleanResponseText = (text) => {
-      // Remove common UI artifacts that appear in ChatGPT responses
+    // Find and click the copy button to get the response text
+    const findAndClickCopyButton = async () => {
+      if (isAutomated) {
+        console.log("[AUTOMATED] Looking for copy button...");
+      }
       
-      // Common programming languages and formats that ChatGPT recognizes
-      const languages = [
-        'python', 'javascript', 'java', 'c', 'cpp', 'csharp', 'ruby', 'php', 'swift', 'kotlin',
-        'go', 'rust', 'typescript', 'sql', 'html', 'css', 'bash', 'shell', 'json', 'xml',
-        'yaml', 'markdown', 'perl', 'r', 'matlab', 'vba', 'scala', 'lua', 'dart', 'groovy',
-        'objectivec', 'powershell', 'haskell', 'elixir', 'clojure', 'fsharp', 'assembly',
-        'vbnet', 'pascal', 'fortran', 'cobol', 'ada', 'prolog', 'lisp', 'scheme', 'erlang',
-        'ocaml', 'racket', 'verilog', 'vhdl', 'coffeescript', 'jsx', 'tsx', 'dockerfile',
-        'makefile', 'cmake', 'gradle', 'ini', 'toml', 'csv', 'tsv', 'latex', 'diff', 'patch',
-        'nginx', 'apache', 'http', 'dos', 'bat', 'cmd', 'autoit', 'ahk', 'vbscript',
-        'actionscript', 'as3', 'applescript', 'vb', 'smalltalk', 'tcl', 'd', 'nim', 'crystal',
-        'julia', 'brainfuck', 'lolcode', 'bf', 'forth', 'dylan', 'eiffel', 'md'
-      ];
-      
-      // Generate patterns dynamically for all languages
-      const artifacts = [
-        // Generic patterns
-        /^Copy code\s*/gi,             // Handle "Copy code" at start
-        /^Copy\s*/gi,                  // Handle "Copy" at start
-        /^code\s*/gi,                  // Handle "code" at start
-        /^markdown\s*/gi,              // Handle "markdown" at start
-        /\s*Copy code\s*$/gi,          // Handle "Copy code" at end
-        /\s*Copy\s*$/gi,               // Handle "Copy" at end
-        /\s*markdown\s*$/gi,           // Handle "markdown" at end
-        /\s*code\s*$/gi                // Handle "code" at end
-      ];
-      
-      // Add language-specific patterns
-      languages.forEach(lang => {
-        artifacts.push(new RegExp(`^${lang}Copy code\\s*`, 'gi'));  // At start
-        artifacts.push(new RegExp(`\\s*${lang}Copy code\\s*$`, 'gi')); // At end
-      });
-      
-      let cleanedText = text;
-      artifacts.forEach(pattern => {
-        cleanedText = cleanedText.replace(pattern, '');
-      });
-      
-      return cleanedText.trim();
-    };
-
-    const waitForResponseText = async () => {
-      for (let i = 0; i < 200; i += 1) {
-        // Try multiple selectors for response text
-        const selectors = [
-          ".markdown.prose",
-          "[data-message-author-role='assistant'] .markdown",
-          ".prose.markdown",
-          "[data-testid='conversation-turn-3'] .markdown", // Often the latest response
-          ".markdown"
+      for (let i = 0; i < 40; i += 1) {
+        // Try multiple selectors for the copy button
+        const copyButtonSelectors = [
+          'button[data-testid="copy-turn-action-button"]',  // Primary selector
+          'button[aria-label="Copy"]',                      // Fallback by aria-label
+          'button[aria-label*="Copy"]',                     // Partial match
+          'button:has(svg):not([data-testid="stop-button"])', // Button with SVG (but not stop button)
         ];
         
-        if (isAutomated && i % 10 === 0) {
-          console.log(`[AUTOMATED] Waiting for response text... attempt ${i}/200`);
-        }
-        
-        for (const selector of selectors) {
-          const elements = document.querySelectorAll(selector);
-          if (isAutomated && i === 0 && elements.length > 0) {
-            console.log(`[AUTOMATED] Found ${elements.length} elements with selector: ${selector}`);
-          }
-          // Get the last (most recent) element
-          for (let j = elements.length - 1; j >= 0; j--) {
-            const element = elements[j];
-            const rawText = element.textContent.trim();
-            if (rawText && rawText.length > 10) { // Ensure it's substantial content
-              const cleanedText = cleanResponseText(rawText);
-              if (cleanedText && cleanedText.length > 5) { // Ensure cleaned text is still substantial
-                if (isAutomated) {
-                  console.log(`[AUTOMATED] Found response text with selector: ${selector}`);
-                }
-                return cleanedText;
-              }
+        for (const selector of copyButtonSelectors) {
+          const buttons = document.querySelectorAll(selector);
+          
+          // Get the last (most recent) copy button
+          if (buttons.length > 0) {
+            const copyButton = buttons[buttons.length - 1];
+            
+            if (isAutomated) {
+              console.log(`[AUTOMATED] Found copy button using selector: ${selector}`);
             }
+            
+            // Click the copy button
+            copyButton.click();
+            
+            if (isAutomated) {
+              console.log("[AUTOMATED] Copy button clicked, waiting for clipboard...");
+            }
+            
+            // Wait a bit for the clipboard operation to complete
+            await sleep(500);
+            
+            return true;
           }
         }
         
-        await sleep(500);
+        if (isAutomated && i % 5 === 0) {
+          console.log(`[AUTOMATED] Copy button not found yet... attempt ${i}/40`);
+        }
+        
+        await sleep(250);
       }
       
       if (isAutomated) {
-        console.log("[AUTOMATED] ERROR: Timeout waiting for response text after 200 attempts");
+        console.log("[AUTOMATED] ERROR: Copy button not found after waiting");
       }
-      return null;
+      return false;
     };
   
-    const responseText = await waitForResponseText();
-    if (!responseText) {
+    const copyButtonClicked = await findAndClickCopyButton();
+    
+    if (!copyButtonClicked) {
       if (isAutomated) {
-        console.log("[AUTOMATED] ERROR: Response text not found");
-        throw new Error("Response text not found after waiting");
+        console.log("[AUTOMATED] ERROR: Could not find copy button");
+        throw new Error("Could not find copy button to get response");
       }
-      showToast("Response text not found after waiting", "warning");
+      showToast("Could not find copy button", "error");
+      return;
+    }
+    
+    // Read from clipboard
+    let responseText = null;
+    try {
+      if (isAutomated) {
+        console.log("[AUTOMATED] Reading from clipboard...");
+      }
+      
+      responseText = await navigator.clipboard.readText();
+      
+      if (isAutomated) {
+        console.log(`[AUTOMATED] Successfully read ${responseText.length} characters from clipboard`);
+      }
+    } catch (error) {
+      if (isAutomated) {
+        console.log(`[AUTOMATED] ERROR: Failed to read clipboard: ${error.message}`);
+        throw new Error(`Failed to read clipboard: ${error.message}`);
+      }
+      showToast(`Failed to read clipboard: ${error.message}`, "error");
+      return;
+    }
+    if (!responseText || responseText.trim().length === 0) {
+      if (isAutomated) {
+        console.log("[AUTOMATED] ERROR: Clipboard is empty or response text not found");
+        throw new Error("Clipboard is empty or response text not found");
+      }
+      showToast("Clipboard is empty or response text not found", "warning");
       return;
     }
     
     if (isAutomated) {
-      console.log(`[AUTOMATED] Response text found (${responseText.length} characters)`);
+      console.log(`[AUTOMATED] Response text captured from clipboard (${responseText.length} characters)`);
     }
   
     if (

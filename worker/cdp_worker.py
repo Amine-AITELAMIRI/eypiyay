@@ -20,11 +20,17 @@ logger = logging.getLogger(__name__)
 
 # Import VPN rotation module (optional dependency)
 try:
-    import vpn_rotate_min
+    # Try relative import first (when run as module: python -m worker.cdp_worker)
+    from . import vpn_rotate_min
     VPN_AVAILABLE = True
 except ImportError:
-    VPN_AVAILABLE = False
-    logger.warning("vpn_rotate_min module not available, VPN rotation will be disabled")
+    try:
+        # Try direct import (when run as script: python cdp_worker.py)
+        import vpn_rotate_min
+        VPN_AVAILABLE = True
+    except ImportError:
+        VPN_AVAILABLE = False
+        logger.warning("vpn_rotate_min module not available, VPN rotation will be disabled")
 
 
 def parse_args() -> argparse.Namespace:
