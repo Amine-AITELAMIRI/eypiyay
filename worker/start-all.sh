@@ -37,16 +37,17 @@ log "=== Starting ChatGPT Relay Worker ==="
 
 # Start Chrome using the dedicated startup script (with headless optimizations)
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
-log "Opening ChatGPT URL: $CHATGPT_URL"
 log "Using start-chrome-debuger.sh (headless mode with Pi optimizations)"
+log "Note: Chrome will start with a blank page. Worker will navigate to ChatGPT when jobs arrive."
 
 # Export port for start-chrome-debuger.sh to use
 export CHROME_PORT
 export CHROME_USER_DATA="$HOME/.config/chrome-debug"
 
-# Call the Chrome startup script with the ChatGPT URL
+# Call the Chrome startup script WITHOUT an initial URL
+# The worker's modify_chatgpt_url() function will handle navigation before each request
 # Note: We're in ~/eypiyay after the cd command, so use worker/script path
-worker/start-chrome-debuger.sh "$CHATGPT_URL" 2>&1 | while IFS= read -r line; do
+worker/start-chrome-debuger.sh 2>&1 | while IFS= read -r line; do
     log "$line"
 done
 
@@ -85,10 +86,10 @@ fi
 
 log "Chrome is ready on port $CHROME_PORT"
 
-# Wait a bit more for the page to load
-# Headless Chrome on Pi may need more time to initialize the page
-log "Waiting for page to load..."
-sleep 8
+# Wait a bit for Chrome to be fully ready
+# Since we're starting with a blank page, this is just to ensure Chrome is stable
+log "Waiting for Chrome to stabilize..."
+sleep 3
 
 # Activate virtual environment
 VENV_PATH="$HOME/chatgpt-relay-env"
