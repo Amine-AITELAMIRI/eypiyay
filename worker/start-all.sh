@@ -35,43 +35,48 @@ log() {
 
 log "=== Starting ChatGPT Relay Worker ==="
 
-# Kill any existing Chrome processes
-log "Killing existing Chrome processes..."
-pkill -f chromium || true
-sleep 2
+# Determine script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Start Chrome with remote debugging enabled
+# Start Chrome using the dedicated startup script (with headless optimizations)
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
 log "Opening ChatGPT URL: $CHATGPT_URL"
-chromium-browser \
-  --remote-debugging-port=$CHROME_PORT \
-  --remote-allow-origins=http://localhost:$CHROME_PORT \
-  --user-data-dir="$HOME/.config/chrome-debug" \
-  --no-first-run \
-  --no-default-browser-check \
-  --disable-background-timer-throttling \
-  --disable-backgrounding-occluded-windows \
-  --disable-renderer-backgrounding \
-  --disable-features=TranslateUI \
-  --disable-ipc-flooding-protection \
-  --disable-web-security \
-  --disable-features=VizDisplayCompositor \
-  --memory-pressure-off \
-  --max_old_space_size=4096 \
-  "$CHATGPT_URL" \
-  > /dev/null 2>&1 &
+log "Using start-chrome-debuger.sh (headless mode with Pi optimizations)"
 
-CHROME_PID=$!
-log "Chrome started with PID: $CHROME_PID"
+# Export port for start-chrome-debuger.sh to use
+export CHROME_PORT
+export CHROME_USER_DATA="$HOME/.config/chrome-debug"
+
+# Call the Chrome startup script with the ChatGPT URL
+"$SCRIPT_DIR/start-chrome-debuger.sh" "$CHATGPT_URL" 2>&1 | while IFS= read -r line; do
+    log "$line"
+done
+
+# Get the PID of the most recent chromium process
+sleep 1
+CHROME_PID=$(pgrep -f "chromium-browser.*$CHROME_PORT" | tail -1)
+
+if [ -z "$CHROME_PID" ]; then
+    log "WARNING: Could not determine Chrome PID, proceeding anyway..."
+else
+    log "Chrome PID: $CHROME_PID"
+fi
 
 # Wait for Chrome to be ready
 log "Waiting for Chrome to be ready..."
 sleep 5
 
 # Verify Chrome is running
-if ! ps -p $CHROME_PID > /dev/null; then
-    log "ERROR: Chrome failed to start!"
+if [ -n "$CHROME_PID" ] && ! ps -p $CHROME_PID > /dev/null 2>&1; then
+    log "ERROR: Chrome process $CHROME_PID is not running!"
     exit 1
+elif [ -z "$CHROME_PID" ]; then
+    # Try alternative detection method
+    if ! pgrep -f chromium > /dev/null; then
+        log "ERROR: Chrome failed to start!"
+        exit 1
+    fi
+    log "Chrome is running (PID detection used alternative method)"
 fi
 
 # Verify debugging port is listening
