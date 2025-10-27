@@ -86,8 +86,9 @@ fi
 log "Chrome is ready on port $CHROME_PORT"
 
 # Wait a bit more for the page to load
+# Headless Chrome on Pi may need more time to initialize the page
 log "Waiting for page to load..."
-sleep 3
+sleep 8
 
 # Activate virtual environment
 VENV_PATH="$HOME/chatgpt-relay-env"
@@ -126,12 +127,14 @@ log "Server URL: $SERVER_URL"
 log "ChatGPT URL: $CHATGPT_URL"
 
 # Run the worker and log output
+# In headless mode, we know Chrome starts with exactly one tab (the ChatGPT URL we provided)
+# So we can use --index 0 to directly select it instead of filtering by URL
 python -m worker.cdp_worker \
   "$SERVER_URL" \
   "$WORKER_ID" \
   "$API_KEY" \
-  chatgpt.com \
-  --pick-first \
+  "" \
+  --index 0 \
   --host "$CHROME_HOST" \
   --port "$CHROME_PORT" \
   --timeout "$CDP_TIMEOUT" \
