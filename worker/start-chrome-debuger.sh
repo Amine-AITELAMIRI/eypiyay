@@ -2,7 +2,8 @@
 # Kill any existing Chrome processes
 pkill -f chromium
 
-# Start Chrome with remote debugging enabled
+# Start Chrome in HEADLESS mode with remote debugging enabled
+# Optimized for Raspberry Pi - reduced memory and CPU usage
 chromium-browser \
   --remote-debugging-port=9222 \
   --remote-allow-origins=http://localhost:9222 \
@@ -17,8 +18,17 @@ chromium-browser \
   --disable-web-security \
   --disable-features=VizDisplayCompositor \
   --memory-pressure-off \
-  --max_old_space_size=4096 \
+  --headless=new \
+  --disable-gpu \
+  --disable-dev-shm-usage \
+  --disable-software-rasterizer \
+  --disable-extensions \
+  --disable-logging \
+  --disable-animations \
+  --no-sandbox \
+  --js-flags="--max-old-space-size=512" \
   > /dev/null 2>&1 &
 
-echo "Chrome started with remote debugging on port 9222"
+echo "Chrome started in HEADLESS mode with remote debugging on port 9222"
 echo "PID: $!"
+echo "Note: To revert to GUI mode, restore from start-chrome-debuger.sh.backup"
