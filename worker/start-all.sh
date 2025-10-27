@@ -35,9 +35,6 @@ log() {
 
 log "=== Starting ChatGPT Relay Worker ==="
 
-# Determine script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # Start Chrome using the dedicated startup script (with headless optimizations)
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
 log "Opening ChatGPT URL: $CHATGPT_URL"
@@ -48,7 +45,8 @@ export CHROME_PORT
 export CHROME_USER_DATA="$HOME/.config/chrome-debug"
 
 # Call the Chrome startup script with the ChatGPT URL
-"$SCRIPT_DIR/start-chrome-debuger.sh" "$CHATGPT_URL" 2>&1 | while IFS= read -r line; do
+# Note: We're in ~/eypiyay after the cd command, so use worker/script path
+worker/start-chrome-debuger.sh "$CHATGPT_URL" 2>&1 | while IFS= read -r line; do
     log "$line"
 done
 
