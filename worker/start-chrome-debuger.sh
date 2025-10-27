@@ -1,6 +1,6 @@
 #!/bin/bash
-# Chrome Startup Script with HEADLESS mode
-# Optimized for Raspberry Pi - reduced memory and CPU usage
+# Chrome Startup Script in GUI mode
+# Optimized for Raspberry Pi but with visual window
 #
 # Usage: ./start-chrome-debuger.sh [URL]
 #   If URL is provided, Chrome will open that page initially
@@ -31,19 +31,7 @@ CHROME_CMD=(
   --disable-web-security
   --disable-features=VizDisplayCompositor
   --memory-pressure-off
-  --headless=new
-  --disable-gpu
-  --disable-dev-shm-usage
-  --disable-software-rasterizer
-  --disable-extensions
-  --disable-component-extensions-with-background-pages
-  --disable-logging
-  --disable-animations
-  --no-sandbox
   --js-flags="--max-old-space-size=512"
-  --user-agent="Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-  --window-size=1920,1080
-  --disable-blink-features=AutomationControlled
 )
 
 # Add initial URL if provided
@@ -56,12 +44,11 @@ fi
 
 CHROME_PID=$!
 
-echo "Chrome started in HEADLESS mode with remote debugging on port $CHROME_PORT"
+echo "Chrome started in GUI mode with remote debugging on port $CHROME_PORT"
 echo "PID: $CHROME_PID"
 if [ -n "$INITIAL_URL" ]; then
   echo "Initial URL: $INITIAL_URL"
 fi
-echo "Note: To revert to GUI mode, restore from start-chrome-debuger.sh.backup"
 
 # Return the PID for calling scripts
 exit 0

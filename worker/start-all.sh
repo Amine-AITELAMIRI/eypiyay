@@ -35,9 +35,9 @@ log() {
 
 log "=== Starting ChatGPT Relay Worker ==="
 
-# Start Chrome using the dedicated startup script (with headless optimizations)
+# Start Chrome using the dedicated startup script
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
-log "Using start-chrome-debuger.sh (headless mode with Pi optimizations)"
+log "Using start-chrome-debuger.sh (GUI mode with Pi optimizations)"
 log "Chrome will start with about:blank. Worker will navigate to ChatGPT when jobs arrive."
 
 # Export port for start-chrome-debuger.sh to use
