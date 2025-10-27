@@ -39,6 +39,8 @@ class RequestRecord:
     prompt_mode: Optional[str]
     model_mode: Optional[str]
     image_url: Optional[str]
+    chat_url: Optional[str]
+    follow_up_chat_url: Optional[str]
     created_at: str
     updated_at: str
 
@@ -57,6 +59,8 @@ def _row_to_record(row: Dict[str, Any]) -> RequestRecord:
         prompt_mode=row.get('prompt_mode'),
         model_mode=row.get('model_mode'),
         image_url=row.get('image_url'),
+        chat_url=row.get('chat_url'),
+        follow_up_chat_url=row.get('follow_up_chat_url'),
         created_at=row['created_at'],
         updated_at=row['updated_at'],
     )
@@ -85,7 +89,8 @@ def create_request(
     webhook_url: Optional[str] = None, 
     prompt_mode: Optional[str] = None, 
     model_mode: Optional[str] = None,
-    image_url: Optional[str] = None
+    image_url: Optional[str] = None,
+    follow_up_chat_url: Optional[str] = None
 ) -> RequestRecord:
     """Create a new request"""
     supabase = get_supabase()
@@ -97,6 +102,7 @@ def create_request(
         'prompt_mode': prompt_mode,
         'model_mode': model_mode,
         'image_url': image_url,
+        'follow_up_chat_url': follow_up_chat_url,
         'webhook_delivered': False
     }
     
@@ -147,17 +153,23 @@ def claim_next_request(worker_id: str) -> Optional[RequestRecord]:
     return _row_to_record(update_result.data[0])
 
 
-def complete_request(request_id: int, response: str) -> RequestRecord:
+def complete_request(request_id: int, response: str, chat_url: Optional[str] = None) -> RequestRecord:
     """Mark a request as completed"""
     supabase = get_supabase()
     
+    update_data = {
+        'status': 'completed',
+        'response': response,
+        'error': None,
+        'updated_at': datetime.utcnow().isoformat()
+    }
+    
+    # Add chat_url if provided
+    if chat_url:
+        update_data['chat_url'] = chat_url
+    
     result = supabase.table('requests')\
-        .update({
-            'status': 'completed',
-            'response': response,
-            'error': None,
-            'updated_at': datetime.utcnow().isoformat()
-        })\
+        .update(update_data)\
         .eq('id', request_id)\
         .execute()
     

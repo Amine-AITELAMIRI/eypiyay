@@ -44,9 +44,10 @@ def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> str:
 class CreateRequest(BaseModel):
     prompt: str = Field(..., min_length=1, description="Prompt text to send to ChatGPT")
     webhook_url: Optional[HttpUrl] = Field(None, description="URL to receive webhook notifications when request completes")
-    prompt_mode: Optional[str] = Field(None, description="Special prompt mode like 'search' or 'study' that types /sear or /stu before the prompt")
+    prompt_mode: Optional[str] = Field(None, description="Special prompt mode like 'search', 'study', or 'deep' that types /sear, /stu, or /deep before the prompt")
     model_mode: Optional[str] = Field(None, description="Model mode: auto, thinking, instant - determines which ChatGPT model to use")
     image_url: Optional[str] = Field(None, description="URL or base64-encoded image to send along with the prompt")
+    follow_up_chat_url: Optional[str] = Field(None, description="ChatGPT chat URL to continue an existing conversation instead of starting a new chat")
 
 
 class RequestResponse(BaseModel):
@@ -61,6 +62,8 @@ class RequestResponse(BaseModel):
     prompt_mode: Optional[str]
     model_mode: Optional[str]
     image_url: Optional[str]
+    chat_url: Optional[str]
+    follow_up_chat_url: Optional[str]
     created_at: str
     updated_at: str
 
@@ -71,6 +74,7 @@ class ClaimRequest(BaseModel):
 
 class CompletionPayload(BaseModel):
     response: str
+    chat_url: Optional[str] = None
 
 
 class FailurePayload(BaseModel):
@@ -193,7 +197,14 @@ def manual_cleanup(
 @app.post("/requests", response_model=RequestResponse, status_code=201)
 def create_request(payload: CreateRequest, api_key: str = Depends(verify_api_key)) -> RequestResponse:
     webhook_url = str(payload.webhook_url) if payload.webhook_url else None
-    record = database.create_request(payload.prompt, webhook_url, payload.prompt_mode, payload.model_mode, payload.image_url)
+    record = database.create_request(
+        payload.prompt, 
+        webhook_url, 
+        payload.prompt_mode, 
+        payload.model_mode, 
+        payload.image_url,
+        payload.follow_up_chat_url
+    )
     return RequestResponse(**database.serialize(record))
 
 
@@ -251,7 +262,7 @@ def claim_request(payload: ClaimRequest, api_key: str = Depends(verify_api_key))
 @app.post("/worker/{request_id}/complete", response_model=RequestResponse)
 def complete_request(request_id: int, payload: CompletionPayload, background_tasks: BackgroundTasks, api_key: str = Depends(verify_api_key)) -> RequestResponse:
     try:
-        record = database.complete_request(request_id, payload.response)
+        record = database.complete_request(request_id, payload.response, payload.chat_url)
         # Schedule webhook delivery in background
         background_tasks.add_task(webhook.send_completion_webhook, request_id)
     except KeyError as exc:

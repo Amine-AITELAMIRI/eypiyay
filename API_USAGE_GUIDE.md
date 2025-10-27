@@ -59,7 +59,9 @@ Content-Type: application/json
   "prompt": "string (required)",
   "webhook_url": "string (optional)",
   "prompt_mode": "string (optional)",
-  "model_mode": "string (optional)"
+  "model_mode": "string (optional)",
+  "image_url": "string (optional)",
+  "follow_up_chat_url": "string (optional)"
 }
 ```
 
@@ -142,7 +144,7 @@ X-API-Key: your-api-key
 ### `prompt_mode` (Optional)
 **Type:** `string`  
 **Description:** Special prompt mode that adds commands before the user prompt  
-**Valid Values:** `"search"`, `"study"`, or `null`/omitted
+**Valid Values:** `"search"`, `"study"`, `"deep"`, or `null`/omitted
 
 **Examples:**
 ```json
@@ -160,6 +162,16 @@ X-API-Key: your-api-key
 }
 ```
 *Result: Types `/sear` + Enter, then "Find information about climate change"*
+
+```json
+{
+  "prompt": "Conduct comprehensive research on quantum computing applications",
+  "prompt_mode": "deep"
+}
+```
+*Result: Types `/deep` + Enter, then "Conduct comprehensive research on quantum computing applications"*
+
+**Note:** Deep research mode may take significantly longer (5-30 minutes) to complete as it performs thorough, comprehensive analysis.
 
 ### `model_mode` (Optional)
 **Type:** `string`  
@@ -214,6 +226,49 @@ X-API-Key: your-api-key
 ```
 *Combines image analysis with detailed thinking mode*
 
+### `follow_up_chat_url` (Optional)
+**Type:** `string`  
+**Description:** ChatGPT chat URL to continue an existing conversation instead of starting a new chat  
+**Format:** Valid ChatGPT chat URL (e.g., `https://chatgpt.com/c/...`)
+
+**How it works:**
+1. When you create a request, the response includes a `chat_url` field with the ChatGPT conversation link
+2. To continue that conversation, pass the `chat_url` back as `follow_up_chat_url` in your next request
+3. The worker will navigate to that specific chat and add your new prompt there
+4. Omit this field to start a fresh conversation
+
+**Examples:**
+```json
+{
+  "prompt": "What is quantum computing?",
+}
+```
+*Initial request - creates a new chat*
+
+**Response includes:**
+```json
+{
+  "id": 123,
+  "chat_url": "https://chatgpt.com/c/abc-123-def",
+  ...
+}
+```
+
+**Follow-up request:**
+```json
+{
+  "prompt": "Can you explain quantum entanglement in more detail?",
+  "follow_up_chat_url": "https://chatgpt.com/c/abc-123-def"
+}
+```
+*Continues the same conversation - ChatGPT will have context from previous messages*
+
+**Benefits:**
+- Build complex conversations with context
+- ChatGPT remembers previous messages
+- Refine or expand on earlier responses
+- Multi-turn conversations without losing context
+
 ## 📤 Response Fields
 
 ### Request Response Object
@@ -231,6 +286,8 @@ X-API-Key: your-api-key
   "prompt_mode": "string|null",
   "model_mode": "string|null",
   "image_url": "string|null",
+  "chat_url": "string|null",
+  "follow_up_chat_url": "string|null",
   "created_at": "string (ISO 8601)",
   "updated_at": "string (ISO 8601)"
 }
@@ -252,6 +309,8 @@ X-API-Key: your-api-key
 | `prompt_mode` | `string\|null` | Prompt mode used (`search`, `study`, or `null`) |
 | `model_mode` | `string\|null` | Model mode used (`auto`, `thinking`, `instant`, or `null`) |
 | `image_url` | `string\|null` | Image URL or base64 data if image was provided |
+| `chat_url` | `string\|null` | ChatGPT conversation URL - use this for follow-up requests |
+| `follow_up_chat_url` | `string\|null` | The chat URL that was used for this request (if it was a follow-up) |
 | `created_at` | `string` | Request creation timestamp (ISO 8601) |
 | `updated_at` | `string` | Last update timestamp (ISO 8601) |
 
@@ -348,6 +407,39 @@ When ChatGPT provides sources (especially in search mode), they are parsed and r
 {
   "prompt": "Find information about renewable energy trends",
   "prompt_mode": "search"
+}
+```
+
+### `"deep"`
+**Description:** Adds `/deep` command before prompt  
+**Use Case:** Comprehensive research, in-depth analysis, complex investigations  
+**Effect:** ChatGPT performs thorough, deep research with comprehensive analysis  
+**Response Time:** ⚠️ **5-30 minutes** (significantly longer than other modes)
+
+> **⏱️ Long-Running Requests**: Deep research mode is designed for comprehensive analysis and may take 5-30 minutes to complete. The system is configured to handle these long-running requests without timeouts:
+> - Worker waits indefinitely for ChatGPT to complete the response
+> - Asynchronous processing pattern (claim → process → complete) prevents API timeouts
+> - No server-side timeouts will interrupt the request
+
+```json
+{
+  "prompt": "Conduct comprehensive research on quantum computing applications",
+  "prompt_mode": "deep"
+}
+```
+
+**Best Practices for Deep Research:**
+- Use specific, well-defined research questions
+- Combine with `"model_mode": "thinking"` for best results
+- Consider using webhooks for notification when complete
+- Poll the API periodically or use webhooks instead of waiting synchronously
+
+```json
+{
+  "prompt": "Analyze the historical development and future prospects of renewable energy technology",
+  "prompt_mode": "deep",
+  "model_mode": "thinking",
+  "webhook_url": "https://your-server.com/webhook"
 }
 ```
 
@@ -608,6 +700,168 @@ def get_response_and_cleanup(request_id):
     data = response.json()
     chatgpt_response = json.loads(data["response"])
     return chatgpt_response["response"]
+```
+
+### Follow-Up Conversation Pattern
+```python
+import requests
+import json
+import time
+
+API_KEY = "f2cd09510f1c537f53d0fcdae11528eef32de93a26e4237874447724be01e1d8"
+BASE_URL = "https://chatgpt-relay-api.onrender.com"
+
+def create_request(prompt, follow_up_chat_url=None):
+    """Create a request, optionally continuing an existing conversation"""
+    payload = {"prompt": prompt}
+    if follow_up_chat_url:
+        payload["follow_up_chat_url"] = follow_up_chat_url
+    
+    response = requests.post(
+        f"{BASE_URL}/requests",
+        headers={"X-API-Key": API_KEY},
+        json=payload
+    )
+    return response.json()
+
+def wait_for_completion(request_id):
+    """Poll until request is completed"""
+    while True:
+        response = requests.get(
+            f"{BASE_URL}/requests/{request_id}",
+            headers={"X-API-Key": API_KEY}
+        )
+        data = response.json()
+        
+        if data["status"] == "completed":
+            result = json.loads(data["response"])
+            return {
+                "response": result["response"],
+                "chat_url": data["chat_url"]
+            }
+        elif data["status"] == "failed":
+            raise Exception(data["error"])
+        
+        time.sleep(5)
+
+# Example: Multi-turn conversation
+# Step 1: Initial question
+print("Asking initial question...")
+request1 = create_request("What is machine learning?")
+result1 = wait_for_completion(request1["id"])
+print(f"Response: {result1['response'][:100]}...")
+print(f"Chat URL: {result1['chat_url']}")
+
+# Step 2: Follow-up question in same conversation
+print("\nAsking follow-up question...")
+request2 = create_request(
+    "Can you give me an example?",
+    follow_up_chat_url=result1["chat_url"]
+)
+result2 = wait_for_completion(request2["id"])
+print(f"Response: {result2['response'][:100]}...")
+
+# Step 3: Another follow-up
+print("\nAsking another follow-up...")
+request3 = create_request(
+    "What are the main challenges?",
+    follow_up_chat_url=result2["chat_url"]
+)
+result3 = wait_for_completion(request3["id"])
+print(f"Response: {result3['response'][:100]}...")
+```
+
+### Conversation Manager Class
+```python
+import requests
+import json
+import time
+
+class ChatGPTConversation:
+    """Helper class to manage multi-turn conversations"""
+    
+    def __init__(self, api_key, base_url="https://chatgpt-relay-api.onrender.com"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.chat_url = None
+        self.history = []
+    
+    def ask(self, prompt, **kwargs):
+        """
+        Send a prompt to ChatGPT.
+        Automatically continues the conversation if chat_url exists.
+        
+        Args:
+            prompt: The question/prompt to send
+            **kwargs: Additional parameters (prompt_mode, model_mode, etc.)
+        
+        Returns:
+            ChatGPT's response text
+        """
+        # Create request
+        payload = {"prompt": prompt, **kwargs}
+        if self.chat_url:
+            payload["follow_up_chat_url"] = self.chat_url
+        
+        response = requests.post(
+            f"{self.base_url}/requests",
+            headers={"X-API-Key": self.api_key},
+            json=payload
+        )
+        request_data = response.json()
+        request_id = request_data["id"]
+        
+        # Wait for completion
+        while True:
+            response = requests.get(
+                f"{self.base_url}/requests/{request_id}",
+                headers={"X-API-Key": self.api_key}
+            )
+            data = response.json()
+            
+            if data["status"] == "completed":
+                result = json.loads(data["response"])
+                response_text = result["response"]
+                
+                # Update chat URL for next message
+                self.chat_url = data["chat_url"]
+                
+                # Store in history
+                self.history.append({
+                    "prompt": prompt,
+                    "response": response_text,
+                    "request_id": request_id
+                })
+                
+                return response_text
+            
+            elif data["status"] == "failed":
+                raise Exception(data["error"])
+            
+            time.sleep(5)
+    
+    def start_new_conversation(self):
+        """Reset to start a fresh conversation"""
+        self.chat_url = None
+        self.history = []
+
+# Usage example
+conversation = ChatGPTConversation(api_key="your-api-key")
+
+# Multi-turn conversation
+response1 = conversation.ask("Explain quantum computing")
+print(response1)
+
+response2 = conversation.ask("What are its practical applications?")
+print(response2)
+
+response3 = conversation.ask("What companies are leading in this field?")
+print(response3)
+
+# Start a new conversation
+conversation.start_new_conversation()
+response4 = conversation.ask("Tell me about artificial intelligence")
+print(response4)
 ```
 
 ## ⚠️ Error Handling

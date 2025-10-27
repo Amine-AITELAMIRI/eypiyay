@@ -98,20 +98,42 @@ def wait_for_new_file(send, previous: List[str]) -> Optional[str]:
         time.sleep(1.0)
 
 
-def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str) -> None:
-    """Modify the ChatGPT URL to use the configured URL with model parameter"""
-    # Use the configured ChatGPT URL
-    base_url = chatgpt_url.rstrip('/')
+def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str, follow_up_chat_url: Optional[str] = None) -> None:
+    """
+    Navigate to ChatGPT URL - either follow-up chat or default URL with model parameter
     
-    # Add model parameter if model_mode is specified
-    if model_mode:
-        target_url = f"{base_url}?model=gpt-5-{model_mode}"
+    Args:
+        send: CDP send function
+        model_mode: Model mode (auto, thinking, instant)
+        chatgpt_url: Default configured ChatGPT URL
+        follow_up_chat_url: Optional URL of existing chat to continue
+    """
+    # If follow_up_chat_url is provided, use it (for continuing conversations)
+    if follow_up_chat_url:
+        base_url = follow_up_chat_url.rstrip('/')
+        
+        # Add model parameter to follow-up URL if model_mode is specified
+        if model_mode:
+            # Check if URL already has query parameters
+            separator = '&' if '?' in base_url else '?'
+            target_url = f"{base_url}{separator}model=gpt-5-{model_mode}"
+        else:
+            target_url = base_url
+        
+        logger.info(f"Navigating to follow-up chat: {target_url}")
     else:
-        target_url = base_url
+        # Use the configured ChatGPT URL for new conversations
+        base_url = chatgpt_url.rstrip('/')
+        
+        # Add model parameter if model_mode is specified
+        if model_mode:
+            target_url = f"{base_url}?model=gpt-5-{model_mode}"
+        else:
+            target_url = base_url
+        
+        logger.info(f"Navigating to new chat: {target_url}")
     
-    logger.info(f"Navigating to ChatGPT URL: {target_url}")
-    
-    # Navigate to the new URL
+    # Navigate to the URL
     send("Page.navigate", {"url": target_url})
     
     # Wait for page to load
@@ -222,11 +244,14 @@ def run_prompt(
         send("Runtime.enable")
         saved_before = get_saved_files(send)
 
-        # Handle model mode by modifying URL if specified
+        # Handle navigation - either to follow-up chat or new chat with model mode
         model_mode = job.get("model_mode")
-        if model_mode:
-            modify_chatgpt_url(send, model_mode, chatgpt_url)
-            # Wait a bit longer for page to fully stabilize after reload
+        follow_up_chat_url = job.get("follow_up_chat_url")
+        
+        # Navigate if we have a model mode OR a follow-up URL
+        if model_mode or follow_up_chat_url:
+            modify_chatgpt_url(send, model_mode, chatgpt_url, follow_up_chat_url)
+            # Wait a bit longer for page to fully stabilize after navigation
             time.sleep(2)
 
         # Convert image URL to base64 BEFORE setting window variables
@@ -308,9 +333,21 @@ def claim_request(server: str, worker_id: str, api_key: str) -> Optional[Dict[st
 
 def post_completion(server: str, request_id: int, result: Dict[str, Any], api_key: str) -> None:
     headers = {"X-API-Key": api_key}
+    
+    # Extract chat_url from result if available
+    chat_url = result.get("url")
+    
+    payload = {
+        "response": json.dumps(result)
+    }
+    
+    # Include chat_url if present
+    if chat_url:
+        payload["chat_url"] = chat_url
+    
     response = requests.post(
         f"{server.rstrip('/')}/worker/{request_id}/complete",
-        json={"response": json.dumps(result)},
+        json=payload,
         headers=headers,
     )
     response.raise_for_status()

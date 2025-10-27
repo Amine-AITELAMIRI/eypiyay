@@ -91,6 +91,7 @@ The API supports special prompt modes that activate ChatGPT's built-in commands:
 
 - **`"search"`** - Types `/sear` and presses Enter before the user prompt to activate search mode
 - **`"study"`** - Types `/stu` and presses Enter before the user prompt to activate study mode
+- **`"deep"`** - Types `/deep` and presses Enter before the user prompt to activate deep research mode (⚠️ 5-30 minutes response time)
 - **`null` or omitted** - No special mode is applied (default behavior)
 
 Example requests:
@@ -112,7 +113,16 @@ Example requests:
   "prompt": "Explain machine learning concepts", 
   "prompt_mode": "study"
 }
+
+// Deep research mode prompt (takes 5-30 minutes)
+{
+  "prompt": "Conduct comprehensive research on quantum computing applications",
+  "prompt_mode": "deep",
+  "webhook_url": "https://your-server.com/webhook"
+}
 ```
+
+**Note:** Deep research mode is designed for comprehensive analysis and may take 5-30 minutes to complete. The system handles these long-running requests without timeouts using an asynchronous worker pattern. Consider using webhooks for notification when the research is complete.
 
 #### Database Cleanup
 
@@ -286,9 +296,36 @@ The worker now requires an API key as the third argument. Make sure to use the s
 - Keep your API key secret and don't commit it to version control
 - The worker authenticates with the same API key used by the server
 
+## New Features
+
+### ✨ Automatic Source Extraction
+
+The API now automatically extracts and returns **sources** separately from the response content. When ChatGPT provides citations (especially in search mode), they are parsed into structured data:
+
+```json
+{
+  "response": "Clean content without source list...",
+  "sources": [
+    {
+      "number": 1,
+      "url": "https://example.com/article",
+      "title": "Article Title"
+    }
+  ]
+}
+```
+
+**Benefits:**
+- Clean content display without citation clutter
+- Structured source data for easy access
+- Perfect for research and fact-checking
+- Automatic parsing of `[1]: URL "Title"` format
+
+See [SOURCES_FEATURE.md](SOURCES_FEATURE.md) for details and [MIGRATION_GUIDE_SOURCES.md](MIGRATION_GUIDE_SOURCES.md) for migration instructions.
+
 ## Notes
 
-- The worker stores the ChatGPT response exactly as the bookmarklet saves it (JSON string with prompt/response/timestamp/url). Downstream consumers can parse it for richer data.
+- The worker stores the ChatGPT response exactly as the bookmarklet saves it (JSON string with prompt/response/sources/timestamp/url). Downstream consumers can parse it for richer data.
 - Failures (timeouts, CDP issues) are reported back via `/worker/{id}/fail` so clients can retry or inspect `error`.
 - The PostgreSQL database is hosted on Supabase with automatic backups and excellent monitoring tools.
 - The API is served over HTTPS when deployed to Render.

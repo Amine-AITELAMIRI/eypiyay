@@ -420,8 +420,8 @@ javascript:(async () => {
     composer.focus();
   
     // Handle special prompt modes
-    if (promptMode && (promptMode === "search" || promptMode === "study")) {
-      const modeCommand = promptMode === "search" ? "/sear" : "/stu";
+    if (promptMode && (promptMode === "search" || promptMode === "study" || promptMode === "deep")) {
+      const modeCommand = promptMode === "search" ? "/sear" : (promptMode === "study" ? "/stu" : "/deep");
       
       if (isAutomated) {
         console.log(`[AUTOMATED] Applying prompt mode: ${promptMode} (typing: ${modeCommand})`);
