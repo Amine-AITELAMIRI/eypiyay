@@ -646,6 +646,10 @@ javascript:(async () => {
         console.log("[AUTOMATED] Reading from clipboard...");
       }
       
+      // Ensure window is focused before reading clipboard (required in GUI mode without active monitor)
+      window.focus();
+      await new Promise(resolve => setTimeout(resolve, 100)); // Brief delay to ensure focus takes effect
+      
       responseText = await navigator.clipboard.readText();
       
       if (isAutomated) {
