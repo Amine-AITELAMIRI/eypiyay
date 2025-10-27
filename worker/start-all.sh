@@ -38,16 +38,17 @@ log "=== Starting ChatGPT Relay Worker ==="
 # Start Chrome using the dedicated startup script (with headless optimizations)
 log "Starting Chrome with remote debugging on port $CHROME_PORT..."
 log "Using start-chrome-debuger.sh (headless mode with Pi optimizations)"
-log "Note: Chrome will start with a blank page. Worker will navigate to ChatGPT when jobs arrive."
+log "Chrome will start with about:blank. Worker will navigate to ChatGPT when jobs arrive."
 
 # Export port for start-chrome-debuger.sh to use
 export CHROME_PORT
 export CHROME_USER_DATA="$HOME/.config/chrome-debug"
 
-# Call the Chrome startup script WITHOUT an initial URL
+# Call the Chrome startup script with about:blank
+# This ensures Chrome starts with a simple page (not chrome://newtab which blocks CDP)
 # The worker's modify_chatgpt_url() function will handle navigation before each request
 # Note: We're in ~/eypiyay after the cd command, so use worker/script path
-worker/start-chrome-debuger.sh 2>&1 | while IFS= read -r line; do
+worker/start-chrome-debuger.sh "about:blank" 2>&1 | while IFS= read -r line; do
     log "$line"
 done
 
