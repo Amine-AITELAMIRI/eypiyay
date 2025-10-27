@@ -12,7 +12,7 @@ export CHATGPT_URL="https://chatgpt.com/g/g-p-68d04e772ef881918e915068fbe126e4-a
 export CHROME_HOST="localhost"
 export CHROME_PORT="9222"
 export POLL_INTERVAL="3.0"
-export CDP_TIMEOUT="300.0"
+export CDP_TIMEOUT="600.0"
 
 # VPN Rotation settings (for avoiding search engine blacklisting)
 # Set to "true" to enable VPN rotation for search mode requests

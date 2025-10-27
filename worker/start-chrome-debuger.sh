@@ -41,6 +41,9 @@ CHROME_CMD=(
   --disable-animations
   --no-sandbox
   --js-flags="--max-old-space-size=512"
+  --user-agent="Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  --window-size=1920,1080
+  --disable-blink-features=AutomationControlled
 )
 
 # Add initial URL if provided
