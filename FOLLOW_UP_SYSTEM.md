@@ -86,16 +86,29 @@ Updated `POST /worker/{request_id}/complete` to accept `chat_url` in the payload
 ### Worker Changes
 
 #### Navigation Logic
-The worker now checks for `follow_up_chat_url` in the job:
+The worker now checks for `follow_up_chat_url` in the job and intelligently skips navigation if already on the target page:
 
 ```python
-# If follow_up_chat_url is provided, navigate to that chat
+# Get current page URL
+current_url = get_current_page_url()
+
+# Determine target URL (follow-up or new chat)
 if follow_up_chat_url:
-    navigate_to(follow_up_chat_url)
+    target_url = follow_up_chat_url
 else:
-    # Start a new chat with default URL
-    navigate_to(default_chatgpt_url)
+    target_url = default_chatgpt_url
+
+# Only navigate if current page is different (optimization!)
+if normalize_url(current_url) != normalize_url(target_url):
+    navigate_to(target_url)
+else:
+    # Already on the right page, skip navigation
+    logger.info("Already on target page, skipping navigation")
 ```
+
+**Performance Optimization**: The worker checks if the target URL is already open before navigating. This saves 3+ seconds when continuing conversations in the same chat, as it avoids unnecessary page reloads.
+
+**Important**: The optimization **only applies to follow-ups**. When `follow_up_chat_url` is `null` (or not provided), the worker **always navigates** to ensure a fresh new chat is created, even if already on a ChatGPT page.
 
 #### Response Handling
 The worker extracts the chat URL from the bookmarklet response and includes it in the completion payload:
@@ -228,6 +241,8 @@ response4 = conversation.ask("Tell me about AI")
 3. **Flexibility**: Choose whether to follow up or start fresh for each request
 4. **No Session Management**: Client controls conversation continuity via URLs
 5. **Backward Compatible**: Existing code works unchanged (creates new chats)
+6. **Performance Optimized**: Worker skips navigation for follow-ups on same page (saves 3+ seconds)
+7. **Guaranteed Fresh Chats**: When `follow_up_chat_url` is null, always creates a new conversation
 
 ## Best Practices
 

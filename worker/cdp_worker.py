@@ -98,17 +98,50 @@ def wait_for_new_file(send, previous: List[str]) -> Optional[str]:
         time.sleep(1.0)
 
 
+def normalize_url_for_comparison(url: str) -> str:
+    """
+    Normalize URL for comparison by removing trailing slashes and sorting query parameters.
+    This helps determine if two URLs are effectively the same.
+    """
+    from urllib.parse import urlparse, parse_qs, urlencode
+    
+    parsed = urlparse(url.rstrip('/'))
+    
+    # Sort query parameters for consistent comparison
+    query_params = parse_qs(parsed.query)
+    sorted_query = urlencode(sorted(query_params.items()), doseq=True)
+    
+    # Reconstruct normalized URL
+    normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    if sorted_query:
+        normalized += f"?{sorted_query}"
+    
+    return normalized
+
+
+def get_current_page_url(send) -> str:
+    """Get the current page URL via CDP"""
+    try:
+        result = cdp_evaluate(send, "window.location.href")
+        return result.get("value", "")
+    except Exception as e:
+        logger.warning(f"Failed to get current page URL: {e}")
+        return ""
+
+
 def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str, follow_up_chat_url: Optional[str] = None) -> None:
     """
-    Navigate to ChatGPT URL - either follow-up chat or default URL with model parameter
+    Navigate to ChatGPT URL - either follow-up chat or default URL with model parameter.
+    Optimized to skip navigation if already on the target page (only for follow-ups).
+    When follow_up_chat_url is null, always navigates to ensure a NEW chat is created.
     
     Args:
         send: CDP send function
         model_mode: Model mode (auto, thinking, instant)
         chatgpt_url: Default configured ChatGPT URL
-        follow_up_chat_url: Optional URL of existing chat to continue
+        follow_up_chat_url: Optional URL of existing chat to continue (None means new chat)
     """
-    # If follow_up_chat_url is provided, use it (for continuing conversations)
+    # Determine target URL
     if follow_up_chat_url:
         base_url = follow_up_chat_url.rstrip('/')
         
@@ -120,7 +153,8 @@ def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str, follow_up_chat_u
         else:
             target_url = base_url
         
-        logger.info(f"Navigating to follow-up chat: {target_url}")
+        url_type = "follow-up chat"
+        is_follow_up = True
     else:
         # Use the configured ChatGPT URL for new conversations
         base_url = chatgpt_url.rstrip('/')
@@ -131,9 +165,26 @@ def modify_chatgpt_url(send, model_mode: str, chatgpt_url: str, follow_up_chat_u
         else:
             target_url = base_url
         
-        logger.info(f"Navigating to new chat: {target_url}")
+        url_type = "new chat"
+        is_follow_up = False
+    
+    # Only optimize navigation for follow-ups
+    # For new chats (follow_up_chat_url is None), always navigate to ensure fresh conversation
+    if is_follow_up:
+        # Get current page URL and check if navigation is needed
+        current_url = get_current_page_url(send)
+        
+        # Normalize URLs for comparison
+        normalized_current = normalize_url_for_comparison(current_url) if current_url else ""
+        normalized_target = normalize_url_for_comparison(target_url)
+        
+        # Skip navigation if already on the target page (only for follow-ups)
+        if normalized_current == normalized_target:
+            logger.info(f"Already on target page ({url_type}), skipping navigation: {target_url}")
+            return
     
     # Navigate to the URL
+    logger.info(f"Navigating to {url_type}: {target_url}")
     send("Page.navigate", {"url": target_url})
     
     # Wait for page to load

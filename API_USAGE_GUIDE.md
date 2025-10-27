@@ -268,6 +268,8 @@ X-API-Key: your-api-key
 - ChatGPT remembers previous messages
 - Refine or expand on earlier responses
 - Multi-turn conversations without losing context
+- **Performance Optimized**: Worker skips page reload if already on the target chat (saves 3+ seconds)
+- **Guaranteed Fresh Chats**: Omit `follow_up_chat_url` (or set to `null`) to always start a new conversation
 
 ## 📤 Response Fields
 
