@@ -295,15 +295,16 @@ def run_prompt(
         send("Runtime.enable")
         saved_before = get_saved_files(send)
 
-        # Handle navigation - either to follow-up chat or new chat with model mode
+        # Handle navigation - either to follow-up chat or new chat
         model_mode = job.get("model_mode")
         follow_up_chat_url = job.get("follow_up_chat_url")
         
-        # Navigate if we have a model mode OR a follow-up URL
-        if model_mode or follow_up_chat_url:
-            modify_chatgpt_url(send, model_mode, chatgpt_url, follow_up_chat_url)
-            # Wait a bit longer for page to fully stabilize after navigation
-            time.sleep(2)
+        # Always navigate to ensure we're on the correct page
+        # - If follow_up_chat_url is provided: navigate to that specific chat
+        # - If follow_up_chat_url is null: navigate to chatgpt_url to start a new chat
+        modify_chatgpt_url(send, model_mode, chatgpt_url, follow_up_chat_url)
+        # Wait a bit longer for page to fully stabilize after navigation
+        time.sleep(2)
 
         # Convert image URL to base64 BEFORE setting window variables
         # This ensures the page is fully loaded when we set the image
