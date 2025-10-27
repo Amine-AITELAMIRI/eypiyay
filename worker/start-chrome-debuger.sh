@@ -36,6 +36,7 @@ CHROME_CMD=(
   --disable-dev-shm-usage
   --disable-software-rasterizer
   --disable-extensions
+  --disable-component-extensions-with-background-pages
   --disable-logging
   --disable-animations
   --no-sandbox

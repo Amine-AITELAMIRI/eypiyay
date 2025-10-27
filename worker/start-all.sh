@@ -129,14 +129,14 @@ log "Server URL: $SERVER_URL"
 log "ChatGPT URL: $CHATGPT_URL"
 
 # Run the worker and log output
-# In headless mode, we know Chrome starts with exactly one tab (the ChatGPT URL we provided)
-# So we can use --index 0 to directly select it instead of filtering by URL
+# Filter by "about:blank" to find the actual page tab (not extension background pages)
+# The worker will navigate to ChatGPT when a job arrives
 python -m worker.cdp_worker \
   "$SERVER_URL" \
   "$WORKER_ID" \
   "$API_KEY" \
-  "" \
-  --index 0 \
+  "about:blank" \
+  --pick-first \
   --host "$CHROME_HOST" \
   --port "$CHROME_PORT" \
   --timeout "$CDP_TIMEOUT" \
